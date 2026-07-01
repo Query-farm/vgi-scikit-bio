@@ -99,5 +99,57 @@ SELECT count(*) FROM skbio.stats.ilr((SELECT * FROM comp));
 ----
 4
 
+# closure rescales each sample to sum to 1
+query I
+SELECT round(sum(proportion), 6) FROM skbio.stats.closure((SELECT * FROM comp)) WHERE sample_id = 's1';
+----
+1.0
+
+# ALR maps 3 parts -> 2 components per sample
+query I
+SELECT count(*) FROM skbio.stats.alr((SELECT * FROM comp));
+----
+4
+
+# clr_inv inverts CLR coordinates back to proportions (sum to 1 per sample)
+query I
+SELECT round(sum(value), 6) FROM skbio.stats.clr_inv((
+  SELECT sample_id, feature_id, clr FROM skbio.stats.clr((SELECT * FROM comp)))) WHERE sample_id = 's1';
+----
+1.0
+
+# pairwise VLR is a full feature-by-feature matrix (3 features -> 9 rows)
+query I
+SELECT count(*) FROM skbio.stats.pairwise_vlr((SELECT * FROM (VALUES
+  ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6),
+  ('s3','a',2),('s3','b',1),('s3','c',7)) AS t(sample_id, feature_id, value)));
+----
+9
+
+# ==========================================================================
+# Differential abundance (ANCOM / Dirichlet-multinomial t-test)
+# ==========================================================================
+
+statement ok
+CREATE TEMP TABLE diff AS SELECT s.sample_id, s.feature_id, s.count, g.grp FROM (VALUES
+  ('s1','b1',12),('s1','b2',11),('s1','b3',10),('s2','b1',9),('s2','b2',11),('s2','b3',12),
+  ('s3','b1',1),('s3','b2',11),('s3','b3',10),('s4','b1',22),('s4','b2',21),('s4','b3',9),
+  ('s5','b1',20),('s5','b2',22),('s5','b3',10),('s6','b1',23),('s6','b2',21),('s6','b3',14)
+) AS s(sample_id, feature_id, count)
+JOIN (VALUES ('s1','x'),('s2','x'),('s3','x'),('s4','y'),('s5','y'),('s6','y')) AS g(sample, grp)
+  ON s.sample_id = g.sample;
+
+# ANCOM reports one row per feature
+query I
+SELECT count(*) FROM skbio.stats.ancom((SELECT * FROM diff));
+----
+3
+
+# Dirichlet-multinomial t-test: one row per feature, six result columns
+query I
+SELECT count(*) FROM (DESCRIBE SELECT * FROM skbio.stats.dirmult_ttest((SELECT * FROM diff)));
+----
+6
+
 statement ok
 DETACH skbio;

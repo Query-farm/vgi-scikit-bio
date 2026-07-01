@@ -8,9 +8,11 @@ from types import SimpleNamespace
 import pyarrow as pa
 import pytest
 
-from vgi_scikit_bio.composition import Clr, Ilr
+from vgi_scikit_bio.composition import COMPOSITION_FUNCTIONS, Ancom, Clr, DirmultTtest, Ilr
 from vgi_scikit_bio.distance_stats import Anosim, Mantel, Permanova
 from vgi_scikit_bio.ordination import Pcoa
+
+_COMP = {c.Meta.name: c for c in COMPOSITION_FUNCTIONS}
 
 
 def _square_dm() -> pa.Table:
@@ -154,3 +156,106 @@ class TestComposition:
         )
         out = Clr.encode(t, self._args(pseudocount=1.0))
         assert all(v is not None and not math.isnan(v) for v in out["clr"])
+
+    def test_full_function_coverage(self) -> None:
+        expected = {
+            "clr",
+            "ilr",
+            "closure",
+            "centralize",
+            "rclr",
+            "multi_replace",
+            "power",
+            "alr",
+            "clr_inv",
+            "ilr_inv",
+            "alr_inv",
+            "pairwise_vlr",
+            "ancom",
+            "dirmult_ttest",
+        }
+        assert expected <= set(_COMP)
+
+    def test_closure_normalizes_to_proportions(self) -> None:
+        out = _COMP["closure"].encode(_composition(), self._args())
+        s1 = [v for s, v in zip(out["sample_id"], out["proportion"], strict=True) if s == "s1"]
+        assert math.isclose(sum(s1), 1.0)
+
+    def test_alr_reduces_dimension(self) -> None:
+        out = _COMP["alr"].encode(_composition(), self._args(ref_idx=0))
+        s1 = [c for s, c in zip(out["sample_id"], out["component"], strict=True) if s == "s1"]
+        assert sorted(s1) == [1, 2]  # 3 features -> 2 ALR components
+
+    def test_clr_inv_roundtrips(self) -> None:
+        clr = Clr.encode(_composition(), self._args())
+        coords = pa.table({"sample_id": clr["sample_id"], "feature_id": clr["feature_id"], "value": clr["clr"]})
+        back = _COMP["clr_inv"].encode(coords, self._args())
+        s1 = [v for s, v in zip(back["sample_id"], back["value"], strict=True) if s == "s1"]
+        assert math.isclose(sum(s1), 1.0)  # inverse gives proportions
+
+    def test_power_transform(self) -> None:
+        out = _COMP["power"].encode(_composition(), self._args(power=2.0))
+        assert len(out["value"]) == 6
+
+    def test_pairwise_vlr_matrix(self) -> None:
+        t = pa.table(
+            {
+                "sample_id": ["s1", "s1", "s1", "s2", "s2", "s2", "s3", "s3", "s3"],
+                "feature_id": ["a", "b", "c"] * 3,
+                "value": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 2.0, 1.0, 7.0],
+            }
+        )
+        out = _COMP["pairwise_vlr"].encode(t, self._args())
+        assert len(out["vlr"]) == 9  # 3x3 feature matrix
+        diag = [v for a, b, v in zip(out["feature_1"], out["feature_2"], out["vlr"], strict=True) if a == b]
+        assert diag == [0.0, 0.0, 0.0]
+
+
+def _diff_table() -> pa.Table:
+    rows = [
+        ("s1", "b1", 12),
+        ("s1", "b2", 11),
+        ("s1", "b3", 10),
+        ("s2", "b1", 9),
+        ("s2", "b2", 11),
+        ("s2", "b3", 12),
+        ("s3", "b1", 1),
+        ("s3", "b2", 11),
+        ("s3", "b3", 10),
+        ("s4", "b1", 22),
+        ("s4", "b2", 21),
+        ("s4", "b3", 9),
+        ("s5", "b1", 20),
+        ("s5", "b2", 22),
+        ("s5", "b3", 10),
+        ("s6", "b1", 23),
+        ("s6", "b2", 21),
+        ("s6", "b3", 14),
+    ]
+    grp = {"s1": "x", "s2": "x", "s3": "x", "s4": "y", "s5": "y", "s6": "y"}
+    return pa.table(
+        {
+            "sample_id": [r[0] for r in rows],
+            "feature_id": [r[1] for r in rows],
+            "count": [float(r[2]) for r in rows],
+            "grp": [grp[r[0]] for r in rows],
+        }
+    )
+
+
+class TestDifferentialAbundance:
+    def _args(self) -> SimpleNamespace:
+        return SimpleNamespace(sample="sample_id", feature="feature_id", value="count", group="grp")
+
+    def test_ancom_per_feature(self) -> None:
+        out = Ancom.encode(_diff_table(), self._args())
+        assert out["feature_id"] == ["b1", "b2", "b3"]
+        assert all(isinstance(w, int) for w in out["w"])
+        assert all(isinstance(s, bool) for s in out["significant"])
+
+    def test_dirmult_ttest_deterministic(self) -> None:
+        a = self._args()
+        out1 = DirmultTtest.encode(_diff_table(), a)
+        out2 = DirmultTtest.encode(_diff_table(), a)
+        assert out1["log2_fold_change"] == out2["log2_fold_change"]  # fixed seed
+        assert set(out1) == {"feature_id", "t_statistic", "log2_fold_change", "pvalue", "qvalue", "significant"}
