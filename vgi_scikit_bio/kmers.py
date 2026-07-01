@@ -325,4 +325,129 @@ class ResidueFrequencies(SinkBuffer[_ResidueArgs, DrainState]):
         return columns
 
 
-KMER_FUNCTIONS: list[type] = [KmerFrequencies, ResidueFrequencies]
+class TranslateSixFrames(SinkBuffer[_ResidueArgs, DrainState]):
+    """Translate each DNA sequence in all six reading frames, emitted long."""
+
+    FunctionArguments: ClassVar[type] = _ResidueArgs
+
+    class Meta:
+        """VGI metadata for the translate_six_frames function."""
+
+        name = "translate_six_frames"
+        description = "Translate each DNA sequence in all six reading frames (long format)"
+        categories = ["sequence", "nucleotide", "protein"]
+        examples = [
+            FunctionExample(
+                sql=(
+                    "SELECT * FROM skbio.sequence.translate_six_frames("
+                    "(SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG')) AS reads(id, seq)), id := 'id')"
+                ),
+                description="Six-frame translation of a DNA sequence",
+            )
+        ]
+        tags = {
+            "vgi.category": "composition",
+            "vgi.result_columns_md": columns_md_rows(
+                [
+                    ("frame", "VARCHAR", "Reading frame: +1/+2/+3 (forward) or -1/-2/-3 (reverse)."),
+                    ("protein", "VARCHAR", "The amino-acid translation for that frame (stops as '*')."),
+                ],
+                note=_ID_NOTE,
+            ),
+            "vgi.doc_llm": (
+                "Table function translating each input DNA sequence in all six reading frames — the three "
+                "forward frames (+1, +2, +3, offset by 0/1/2 bases) and the three reverse-complement frames "
+                "(-1, -2, -3) — and emitting them long: six rows per sequence. The table arg is "
+                "`(SELECT id_col, seq_col FROM ...)`; `sequence :=` names the DNA column (defaults to the "
+                "single non-id column) and `id :=` an optional id carried onto each row. Returns "
+                "`(id?, frame, protein)` where a stop codon is `*`. Use it to scan for open reading frames "
+                "when the coding frame/strand is unknown."
+            ),
+            "vgi.doc_md": (
+                "**translate_six_frames** — six-frame protein translation of DNA.\n\n"
+                "- Table arg: `(SELECT id, seq FROM ...)`; `sequence :=` the DNA column, `id :=` optional\n"
+                "- Returns six rows per sequence (plus the carried `id`):\n"
+                "  - `frame` — `+1`/`+2`/`+3` (forward) or `-1`/`-2`/`-3` (reverse complement)\n"
+                "  - `protein` — the amino-acid translation (stops as `*`)\n"
+                "- Scan for open reading frames when the coding strand/frame is unknown"
+            ),
+        }
+
+    @classmethod
+    def on_bind(cls, params: BindParams[_ResidueArgs]) -> BindResponse:
+        """Validate the sequence column and fix the long (frame, protein) output schema."""
+        a = params.args
+        input_schema = params.bind_call.input_schema
+        assert input_schema is not None
+        seq_col = _sequence_column(input_schema, a.id, a.sequence)
+        _require_string(input_schema, seq_col)
+        fields: list[pa.Field] = []
+        if a.id:
+            fields.append(input_schema.field(a.id))
+        fields.append(sfield("frame", pa.string(), "Reading frame (+1/+2/+3 or -1/-2/-3).", nullable=False))
+        fields.append(sfield("protein", pa.string(), "Amino-acid translation for the frame.", nullable=False))
+        return BindResponse(output_schema=pa.schema(fields))
+
+    @classmethod
+    def initial_finalize_state(cls, finalize_state_id: bytes, params: TableBufferingParams[_ResidueArgs]) -> DrainState:
+        """Start a fresh single-shot finalize cursor."""
+        return DrainState()
+
+    @classmethod
+    def finalize(
+        cls,
+        params: TableBufferingParams[_ResidueArgs],
+        finalize_state_id: bytes,
+        state: DrainState,
+        out: OutputCollector,
+    ) -> None:
+        """Emit each buffered sequence's six-frame translations, once."""
+        if state.done:
+            out.finish()
+            return
+        state.done = True
+        input_schema = input_schema_of(params)
+        out_schema = params.output_schema
+        table = cls.buffered_table(params, input_schema)
+        if table is None or table.num_rows == 0:
+            out.emit(pa.RecordBatch.from_pydict({n: [] for n in out_schema.names}, schema=out_schema))
+            return
+        out.emit(pa.RecordBatch.from_pydict(cls.encode(table, params.args), schema=out_schema))
+
+    _FRAMES: ClassVar[list[str]] = ["+1", "+2", "+3", "-1", "-2", "-3"]
+
+    @classmethod
+    def encode(cls, table: pa.Table, args: _ResidueArgs) -> dict[str, list[Any]]:
+        """Translate each DNA sequence in six frames, returning long-format columns."""
+        from skbio import DNA
+
+        seq_col = _sequence_column(table.schema, args.id, args.sequence)
+        seqs = table.column(seq_col).to_pylist()
+        id_vals = table.column(args.id).to_pylist() if args.id else None
+
+        ids: list[Any] = []
+        frame_col: list[str] = []
+        protein_col: list[str] = []
+        for row, raw in enumerate(seqs):
+            if raw is None:
+                continue
+            text = str(raw).strip().upper()
+            try:
+                proteins = [str(p) for p in DNA(text).translate_six_frames()]
+            except Exception:
+                continue
+            for frame, protein in zip(cls._FRAMES, proteins, strict=True):
+                if id_vals is not None:
+                    ids.append(id_vals[row])
+                frame_col.append(frame)
+                protein_col.append(protein)
+
+        columns: dict[str, list[Any]] = {}
+        if args.id:
+            columns[args.id] = ids
+        columns["frame"] = frame_col
+        columns["protein"] = protein_col
+        return columns
+
+
+KMER_FUNCTIONS: list[type] = [KmerFrequencies, ResidueFrequencies, TranslateSixFrames]

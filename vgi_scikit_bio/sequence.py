@@ -19,7 +19,7 @@ from collections.abc import Callable
 from typing import Annotated, Any
 
 import pyarrow as pa
-from skbio import DNA, Protein
+from skbio import DNA, RNA, Protein, Sequence
 from vgi.arguments import Param, Returns
 from vgi.metadata import FunctionExample
 from vgi.scalar_function import ScalarFunction
@@ -71,7 +71,55 @@ def _map_bool(seqs: pa.Array, fn: Callable[[str], bool]) -> pa.Array:
         if text is None:
             out.append(None)
             continue
-        out.append(fn(text))
+        try:
+            out.append(fn(text))
+        except Exception:
+            out.append(None)
+    return pa.array(out, type=pa.bool_())
+
+
+def _map_int(seqs: pa.Array, fn: Callable[[str], int | None]) -> pa.Array:
+    """Apply ``fn`` to each cleaned sequence, returning an int64 result array."""
+    out: list[int | None] = []
+    for raw in seqs.to_pylist():
+        text = _clean(raw)
+        if text is None:
+            out.append(None)
+            continue
+        try:
+            out.append(fn(text))
+        except Exception:
+            out.append(None)
+    return pa.array(out, type=pa.int64())
+
+
+def _map_pair_int(seq1: pa.Array, seq2: pa.Array, fn: Callable[[str, str], int | None]) -> pa.Array:
+    """Apply a two-sequence integer function per row (NULL on NULL/invalid)."""
+    out: list[int | None] = []
+    for a, b in zip(seq1.to_pylist(), seq2.to_pylist(), strict=False):
+        ca, cb = _clean(a), _clean(b)
+        if ca is None or cb is None:
+            out.append(None)
+            continue
+        try:
+            out.append(fn(ca, cb))
+        except Exception:
+            out.append(None)
+    return pa.array(out, type=pa.int64())
+
+
+def _map_pair_bool(seq1: pa.Array, seq2: pa.Array, fn: Callable[[str, str], bool]) -> pa.Array:
+    """Apply a two-sequence predicate per row (NULL on NULL/invalid)."""
+    out: list[bool | None] = []
+    for a, b in zip(seq1.to_pylist(), seq2.to_pylist(), strict=False):
+        ca, cb = _clean(a), _clean(b)
+        if ca is None or cb is None:
+            out.append(None)
+            continue
+        try:
+            out.append(fn(ca, cb))
+        except Exception:
+            out.append(None)
     return pa.array(out, type=pa.bool_())
 
 
@@ -432,13 +480,375 @@ class HammingDistance(ScalarFunction):
         return pa.array(out, type=pa.float64())
 
 
+# ===========================================================================
+# Additional single-sequence scalars
+# ===========================================================================
+
+
+def _doc(name: str, kind: str, llm: str, md: str) -> dict[str, str]:
+    """Build the doc/category tags for a sequence scalar."""
+    return {"vgi.category": kind, "vgi.doc_llm": llm, "vgi.doc_md": md}
+
+
+def _grammared(text: str) -> Any:
+    """Parse a (possibly gapped) sequence as DNA if valid, else protein.
+
+    ``degap`` / ``has_gaps`` live on the grammared sequence types (DNA/RNA/
+    Protein), not the base ``Sequence``, so a concrete alphabet is required.
+    """
+    try:
+        return DNA(text)
+    except Exception:
+        return Protein(text)
+
+
+class GcFrequency(ScalarFunction):
+    """Number of G/C bases in a DNA sequence (a raw count, not a fraction)."""
+
+    class Meta:
+        """VGI metadata for the gc_frequency scalar."""
+
+        name = "gc_frequency"
+        description = "Number of G/C bases in a DNA sequence"
+        categories = ["sequence", "nucleotide"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.gc_frequency('ATGCGGATTACAGG')",
+                description="Count of G/C bases in a DNA sequence",
+            )
+        ]
+        tags = _doc(
+            "gc_frequency",
+            "transforms",
+            "Scalar function returning the number of G and C bases in a DNA sequence as a `BIGINT` (the raw "
+            "count behind `gc_content`). Pass one `VARCHAR` DNA column (case-insensitive); NULL or non-DNA "
+            "input returns NULL. Divide by `length(seq)` for the fraction, or use `gc_content` directly.",
+            "**gc_frequency** — count of G/C bases in a DNA sequence.\n\n"
+            "- Input: one `VARCHAR` DNA column (case-insensitive)\n"
+            "- Returns: a `BIGINT` count (NULL for NULL/non-DNA input)\n"
+            "- The raw count behind `gc_content`",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq: Annotated[pa.StringArray, Param(doc="A DNA sequence")],
+    ) -> Annotated[pa.Int64Array, Returns(pa.int64())]:
+        """Return each sequence's G/C base count (NULL for invalid DNA)."""
+        return _map_int(seq, lambda s: int(DNA(s).gc_frequency()))
+
+
+class Degap(ScalarFunction):
+    """Remove gap characters ('-', '.') from a sequence."""
+
+    class Meta:
+        """VGI metadata for the degap scalar."""
+
+        name = "degap"
+        description = "Remove gap characters from a sequence"
+        categories = ["sequence"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.degap('AC-GT--A')",
+                description="Strip alignment gaps from a sequence",
+            )
+        ]
+        tags = _doc(
+            "degap",
+            "transforms",
+            "Scalar function removing gap characters (`-` and `.`) from a sequence, returning the ungapped "
+            "sequence as a `VARCHAR`. Works for any alphabet (DNA/RNA/protein). Pass one `VARCHAR` column; "
+            "NULL input returns NULL. Use it to recover the original sequence from an aligned one.",
+            "**degap** — strip gap characters from a sequence.\n\n"
+            "- Input: one `VARCHAR` sequence column (any alphabet)\n"
+            "- Returns: the ungapped sequence as `VARCHAR` (NULL for NULL input)\n"
+            "- Removes `-` and `.`; recovers the sequence behind an alignment",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq: Annotated[pa.StringArray, Param(doc="A sequence, possibly with gaps")],
+    ) -> Annotated[pa.StringArray, Returns(pa.string())]:
+        """Return each sequence with gap characters removed (NULL stays NULL)."""
+        return _map_str(seq, lambda s: str(_grammared(s).degap()))
+
+
+class ReverseTranscribe(ScalarFunction):
+    """Reverse transcribe an RNA sequence to DNA (U -> T)."""
+
+    class Meta:
+        """VGI metadata for the reverse_transcribe scalar."""
+
+        name = "reverse_transcribe"
+        description = "Reverse transcribe an RNA sequence to DNA (U -> T)"
+        categories = ["sequence", "nucleotide"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.reverse_transcribe('AUGCGGAUUACAGG')",
+                description="DNA of an inline RNA sequence",
+            )
+        ]
+        tags = _doc(
+            "reverse_transcribe",
+            "transforms",
+            "Scalar function reverse-transcribing an RNA sequence to DNA as a `VARCHAR`, replacing every "
+            "uracil (U) with thymine (T) — the inverse of `transcribe`. Pass one `VARCHAR` RNA column "
+            "(case-insensitive); NULL or non-RNA input returns NULL.",
+            "**reverse_transcribe** — RNA to DNA (U becomes T).\n\n"
+            "- Input: one `VARCHAR` RNA column (case-insensitive)\n"
+            "- Returns: the DNA sequence as `VARCHAR` (NULL for NULL/non-RNA input)\n"
+            "- The inverse of `transcribe`",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq: Annotated[pa.StringArray, Param(doc="An RNA sequence")],
+    ) -> Annotated[pa.StringArray, Returns(pa.string())]:
+        """Return each RNA sequence reverse-transcribed to DNA (NULL for invalid RNA)."""
+        return _map_str(seq, lambda s: str(RNA(s).reverse_transcribe()))
+
+
+class HasGaps(ScalarFunction):
+    """Whether a sequence contains any gap characters."""
+
+    class Meta:
+        """VGI metadata for the has_gaps scalar."""
+
+        name = "has_gaps"
+        description = "True if the sequence contains gap characters"
+        categories = ["sequence", "validation"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.has_gaps('AC-GT'), skbio.sequence.has_gaps('ACGT')",
+                description="Detect gaps in sequences",
+            )
+        ]
+        tags = _doc(
+            "has_gaps",
+            "validation",
+            "Scalar predicate returning `BOOLEAN` true when a sequence contains at least one gap character "
+            "(`-` or `.`). Works for any alphabet. Pass one `VARCHAR` column; NULL input returns NULL. Use "
+            "it to find aligned (gapped) rows or to filter them before `degap`.",
+            "**has_gaps** — does a sequence contain gaps?\n\n"
+            "- Input: one `VARCHAR` sequence column (any alphabet)\n"
+            "- Returns: `BOOLEAN` (NULL for NULL input)\n"
+            "- True if any `-` or `.` is present",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq: Annotated[pa.StringArray, Param(doc="A sequence")],
+    ) -> Annotated[pa.BooleanArray, Returns(pa.bool_())]:
+        """Return whether each sequence contains gaps (NULL stays NULL)."""
+        return _map_bool(seq, lambda s: bool(_grammared(s).has_gaps()))
+
+
+class HasDegenerates(ScalarFunction):
+    """Whether a DNA sequence contains degenerate (ambiguity) codes."""
+
+    class Meta:
+        """VGI metadata for the has_degenerates scalar."""
+
+        name = "has_degenerates"
+        description = "True if the DNA sequence contains degenerate (ambiguity) codes"
+        categories = ["sequence", "nucleotide", "validation"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.has_degenerates('ACGTN'), skbio.sequence.has_degenerates('ACGT')",
+                description="Detect ambiguity codes in DNA",
+            )
+        ]
+        tags = _doc(
+            "has_degenerates",
+            "validation",
+            "Scalar predicate returning `BOOLEAN` true when a DNA sequence contains at least one degenerate "
+            "(ambiguity) code such as N, R, or Y — a base that stands for several possibilities. Pass one "
+            "`VARCHAR` DNA column; NULL or non-DNA input returns NULL. Use it to flag reads with ambiguous "
+            "bases.",
+            "**has_degenerates** — does DNA contain ambiguity codes?\n\n"
+            "- Input: one `VARCHAR` DNA column (case-insensitive)\n"
+            "- Returns: `BOOLEAN` (NULL for NULL/non-DNA input)\n"
+            "- True if any IUPAC degenerate code (N, R, Y, ...) is present",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq: Annotated[pa.StringArray, Param(doc="A DNA sequence")],
+    ) -> Annotated[pa.BooleanArray, Returns(pa.bool_())]:
+        """Return whether each DNA sequence has degenerate codes (NULL for invalid DNA)."""
+        return _map_bool(seq, lambda s: bool(DNA(s).has_degenerates()))
+
+
+class CountSubsequence(ScalarFunction):
+    """Number of (non-overlapping) occurrences of a subsequence within a sequence."""
+
+    class Meta:
+        """VGI metadata for the count_subsequence scalar."""
+
+        name = "count_subsequence"
+        description = "Count occurrences of a subsequence within a sequence"
+        categories = ["sequence"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.count_subsequence('ATGCGATGCATG', 'ATG')",
+                description="Count occurrences of a motif",
+            )
+        ]
+        tags = _doc(
+            "count_subsequence",
+            "composition",
+            "Scalar function returning how many times a subsequence occurs within a sequence, as a "
+            "`BIGINT`. Pass the sequence column first and the subsequence to search for second (both "
+            "`VARCHAR`, case-insensitive); NULL input returns NULL. Handy for counting a motif or codon "
+            "across reads.",
+            "**count_subsequence** — occurrences of a subsequence.\n\n"
+            "- Inputs: the sequence, then the subsequence to count (both `VARCHAR`)\n"
+            "- Returns: a `BIGINT` occurrence count (NULL for NULL input)\n"
+            "- Counts a motif/codon within each sequence",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq: Annotated[pa.StringArray, Param(doc="The sequence to search")],
+        subsequence: Annotated[pa.StringArray, Param(doc="The subsequence")],
+    ) -> Annotated[pa.Int64Array, Returns(pa.int64())]:
+        """Return the occurrence count of the subsequence per row (NULL on NULL input)."""
+        return _map_pair_int(seq, subsequence, lambda s, sub: int(Sequence(s).count(sub)))
+
+
+class IsReverseComplement(ScalarFunction):
+    """Whether one DNA sequence is the reverse complement of another."""
+
+    class Meta:
+        """VGI metadata for the is_reverse_complement scalar."""
+
+        name = "is_reverse_complement"
+        description = "True if the second DNA sequence is the reverse complement of the first"
+        categories = ["sequence", "nucleotide", "validation"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.is_reverse_complement('ATGC', 'GCAT')",
+                description="Check reverse-complement relationship",
+            )
+        ]
+        tags = _doc(
+            "is_reverse_complement",
+            "validation",
+            "Scalar predicate returning `BOOLEAN` true when the second DNA sequence is exactly the reverse "
+            "complement of the first. Pass two `VARCHAR` DNA columns (case-insensitive); a NULL or non-DNA "
+            "pair returns NULL. Use it to test whether two reads come from opposite strands.",
+            "**is_reverse_complement** — are two DNA sequences reverse complements?\n\n"
+            "- Inputs: two `VARCHAR` DNA columns (case-insensitive)\n"
+            "- Returns: `BOOLEAN` (NULL for NULL/non-DNA input)\n"
+            "- True when the second is the reverse complement of the first",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq1: Annotated[pa.StringArray, Param(doc="First DNA sequence")],
+        seq2: Annotated[pa.StringArray, Param(doc="Second DNA sequence")],
+    ) -> Annotated[pa.BooleanArray, Returns(pa.bool_())]:
+        """Return whether seq2 is the reverse complement of seq1 (NULL on NULL/invalid)."""
+        return _map_pair_bool(seq1, seq2, lambda a, b: bool(DNA(a).is_reverse_complement(DNA(b))))
+
+
+class MismatchCount(ScalarFunction):
+    """Number of positions at which two equal-length sequences differ."""
+
+    class Meta:
+        """VGI metadata for the mismatch_count scalar."""
+
+        name = "mismatch_count"
+        description = "Number of differing positions between two equal-length sequences"
+        categories = ["sequence", "distance"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.mismatch_count('ACGTACGT', 'ACGAACGT')",
+                description="Count mismatches between two sequences",
+            )
+        ]
+        tags = _doc(
+            "mismatch_count",
+            "distance",
+            "Scalar function returning the number of positions at which two equal-length sequences differ, "
+            "as a `BIGINT` (the raw count behind the Hamming distance). Pass two `VARCHAR` sequence columns "
+            "(case-insensitive); NULL input or a length mismatch returns NULL. Use `match_count` for the "
+            "agreeing positions or `hamming_distance` for the fraction.",
+            "**mismatch_count** — differing positions between two equal-length sequences.\n\n"
+            "- Inputs: two `VARCHAR` sequence columns of equal length\n"
+            "- Returns: a `BIGINT` mismatch count (NULL if NULL or lengths differ)\n"
+            "- The count behind `hamming_distance`; see also `match_count`",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq1: Annotated[pa.StringArray, Param(doc="First sequence")],
+        seq2: Annotated[pa.StringArray, Param(doc="Second sequence (same length)")],
+    ) -> Annotated[pa.Int64Array, Returns(pa.int64())]:
+        """Return the mismatch count per row (NULL on NULL or length mismatch)."""
+        return _map_pair_int(seq1, seq2, lambda a, b: int(Sequence(a).mismatch_frequency(Sequence(b))))
+
+
+class MatchCount(ScalarFunction):
+    """Number of positions at which two equal-length sequences agree."""
+
+    class Meta:
+        """VGI metadata for the match_count scalar."""
+
+        name = "match_count"
+        description = "Number of agreeing positions between two equal-length sequences"
+        categories = ["sequence", "distance"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.sequence.match_count('ACGTACGT', 'ACGAACGT')",
+                description="Count matches between two sequences",
+            )
+        ]
+        tags = _doc(
+            "match_count",
+            "distance",
+            "Scalar function returning the number of positions at which two equal-length sequences agree, "
+            "as a `BIGINT`. Pass two `VARCHAR` sequence columns (case-insensitive); NULL input or a length "
+            "mismatch returns NULL. It is the complement of `mismatch_count` (the two sum to the length).",
+            "**match_count** — agreeing positions between two equal-length sequences.\n\n"
+            "- Inputs: two `VARCHAR` sequence columns of equal length\n"
+            "- Returns: a `BIGINT` match count (NULL if NULL or lengths differ)\n"
+            "- The complement of `mismatch_count`",
+        )
+
+    @classmethod
+    def compute(
+        cls,
+        seq1: Annotated[pa.StringArray, Param(doc="First sequence")],
+        seq2: Annotated[pa.StringArray, Param(doc="Second sequence (same length)")],
+    ) -> Annotated[pa.Int64Array, Returns(pa.int64())]:
+        """Return the match count per row (NULL on NULL or length mismatch)."""
+        return _map_pair_int(seq1, seq2, lambda a, b: int(Sequence(a).match_frequency(Sequence(b))))
+
+
 SEQUENCE_FUNCTIONS: list[type] = [
     GcContent,
+    GcFrequency,
     ReverseComplement,
     Complement,
     Transcribe,
+    ReverseTranscribe,
     Translate,
+    Degap,
     IsValidDna,
     IsValidProtein,
+    HasGaps,
+    HasDegenerates,
+    IsReverseComplement,
+    CountSubsequence,
     HammingDistance,
+    MismatchCount,
+    MatchCount,
 ]

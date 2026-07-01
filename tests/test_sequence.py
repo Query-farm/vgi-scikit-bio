@@ -8,11 +8,20 @@ import pyarrow as pa
 
 from vgi_scikit_bio.sequence import (
     Complement,
+    CountSubsequence,
+    Degap,
     GcContent,
+    GcFrequency,
     HammingDistance,
+    HasDegenerates,
+    HasGaps,
+    IsReverseComplement,
     IsValidDna,
     IsValidProtein,
+    MatchCount,
+    MismatchCount,
     ReverseComplement,
+    ReverseTranscribe,
     Transcribe,
     Translate,
 )
@@ -84,3 +93,35 @@ class TestHammingDistance:
     def test_null_is_null(self) -> None:
         out = HammingDistance.compute(pa.array(["AAAA", None]), pa.array([None, "AAAA"])).to_pylist()
         assert out == [None, None]
+
+
+class TestAdditionalScalars:
+    def test_gc_frequency(self) -> None:
+        assert GcFrequency.compute(pa.array(["ATGCGGATTACAGG"])).to_pylist() == [7]
+
+    def test_degap(self) -> None:
+        assert Degap.compute(pa.array(["AC-GT--A", "MR-IT"])).to_pylist() == ["ACGTA", "MRIT"]
+
+    def test_reverse_transcribe(self) -> None:
+        assert ReverseTranscribe.compute(pa.array(["AUGC"])).to_pylist() == ["ATGC"]
+
+    def test_has_gaps(self) -> None:
+        assert HasGaps.compute(pa.array(["AC-GT", "ACGT", None])).to_pylist() == [True, False, None]
+
+    def test_has_degenerates(self) -> None:
+        assert HasDegenerates.compute(pa.array(["ACGTN", "ACGT"])).to_pylist() == [True, False]
+
+    def test_count_subsequence(self) -> None:
+        assert CountSubsequence.compute(pa.array(["ATGCGATGCATG"]), pa.array(["ATG"])).to_pylist() == [3]
+
+    def test_is_reverse_complement(self) -> None:
+        out = IsReverseComplement.compute(pa.array(["ATGC", "ATGC"]), pa.array(["GCAT", "ATGC"])).to_pylist()
+        assert out == [True, False]
+
+    def test_mismatch_and_match_count(self) -> None:
+        mm = MismatchCount.compute(pa.array(["ACGTACGT"]), pa.array(["ACGAACGT"])).to_pylist()
+        mt = MatchCount.compute(pa.array(["ACGTACGT"]), pa.array(["ACGAACGT"])).to_pylist()
+        assert mm == [1] and mt == [7]
+
+    def test_mismatch_length_mismatch_is_null(self) -> None:
+        assert MismatchCount.compute(pa.array(["AAAA"]), pa.array(["AAA"])).to_pylist() == [None]

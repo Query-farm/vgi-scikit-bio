@@ -75,6 +75,44 @@ SELECT skbio.sequence.hamming_distance('AAAA', 'AAA') IS NULL;
 true
 
 # ============================================================================
+# Additional sequence scalars
+# ============================================================================
+
+query III
+SELECT skbio.sequence.gc_frequency('ATGCGGATTACAGG'),
+       skbio.sequence.degap('AC-GT--A'),
+       skbio.sequence.reverse_transcribe('AUGC');
+----
+7	ACGTA	ATGC
+
+query III
+SELECT skbio.sequence.has_gaps('AC-GT'),
+       skbio.sequence.has_degenerates('ACGTN'),
+       skbio.sequence.is_reverse_complement('ATGC', 'GCAT');
+----
+true	true	true
+
+query III
+SELECT skbio.sequence.count_subsequence('ATGCGATGCATG', 'ATG'),
+       skbio.sequence.mismatch_count('ACGTACGT', 'ACGAACGT'),
+       skbio.sequence.match_count('ACGTACGT', 'ACGAACGT');
+----
+3	1	7
+
+# six-frame translation: 6 rows per DNA sequence
+query I
+SELECT count(*) FROM skbio.sequence.translate_six_frames(
+  (SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG')) AS r(id, seq)), id := 'id');
+----
+6
+
+query I
+SELECT protein FROM skbio.sequence.translate_six_frames(
+  (SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG')) AS r(id, seq)), id := 'id') WHERE frame = '+1';
+----
+MRIT
+
+# ============================================================================
 # k-mer frequencies (long format)
 # ============================================================================
 
