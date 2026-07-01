@@ -1,16 +1,17 @@
-"""Phylogenetic trees: neighbour-joining construction and Newick inspection.
+"""Phylogenetic trees: build from distances, and inspect/compare Newick strings.
 
-* ``neighbor_joining`` builds a tree from a long ``(id_1, id_2, distance)``
-  distance matrix and returns it as a single Newick string:
-
-      SELECT newick FROM skbio.tree.neighbor_joining((SELECT * FROM distances));
-
-* ``tip_count`` / ``total_branch_length`` are scalar functions over a Newick
-  string column, so trees stored in a table can be inspected in bulk.
+* **Builders** -- ``neighbor_joining`` / ``upgma`` / ``gme`` / ``bme`` build a
+  tree from a long ``(id_1, id_2, distance)`` distance matrix and return a single
+  Newick string.
+* **Inspection scalars** -- ``tip_count`` / ``total_branch_length`` /
+  ``tree_height`` read properties of a Newick string, per row.
+* **Comparison scalars** -- ``robinson_foulds`` / ``weighted_robinson_foulds`` /
+  ``cophenetic_distance`` compare two Newick trees, per row.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated, Any, ClassVar
 
@@ -29,84 +30,63 @@ from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
 
 
+def _read_tree(newick: str) -> Any:
+    """Parse a Newick string into a scikit-bio TreeNode."""
+    import warnings
+
+    from skbio.tree import TreeNode
+
+    with warnings.catch_warnings():
+        # A malformed string trips a noisy format-sniffing warning before the
+        # parse fails; the caller already turns that failure into NULL.
+        warnings.simplefilter("ignore")
+        return TreeNode.read([newick], format="newick")
+
+
+# ===========================================================================
+# Tree builders (long distance matrix -> one Newick row)
+# ===========================================================================
+
+
 @dataclass(slots=True, frozen=True)
-class _NjArgs:
+class _BuildArgs:
     data: Annotated[TableInput, Arg(0, doc="A long distance matrix: (id_1, id_2, distance).")]
     id_1: Annotated[str, Arg("id_1", default="", doc="First-id column (defaults to the first column).")]
     id_2: Annotated[str, Arg("id_2", default="", doc="Second-id column (defaults to the second column).")]
     distance: Annotated[str, Arg("distance", default="", doc="Distance column (defaults to the third column).")]
 
 
-class NeighborJoining(SinkBuffer[_NjArgs, DrainState]):
-    """Build a neighbour-joining tree from a distance matrix; return one Newick row."""
+class _TreeBuilder(SinkBuffer[_BuildArgs, DrainState]):
+    """Build a tree from a distance matrix and return one Newick row (subclasses set BUILDER)."""
 
-    FunctionArguments: ClassVar[type] = _NjArgs
-
-    class Meta:
-        """VGI metadata for the neighbor_joining function."""
-
-        name = "neighbor_joining"
-        description = "Build a neighbour-joining tree from a distance matrix (Newick output)"
-        categories = ["tree", "phylogenetics"]
-        examples = [
-            FunctionExample(
-                sql=(
-                    "SELECT newick FROM skbio.tree.neighbor_joining((SELECT * FROM "
-                    "(VALUES ('a','b',5),('a','c',9),('a','d',9),('b','c',10),('b','d',10),('c','d',8)) "
-                    "AS d(id_1, id_2, distance)))"
-                ),
-                description="Neighbour-joining tree of a 4-taxon distance matrix",
-            )
-        ]
-        tags = {
-            "vgi.result_columns_md": columns_md_rows(
-                [("newick", "VARCHAR", "The neighbour-joining tree in Newick format.")]
-            ),
-            "vgi.doc_llm": (
-                "Table function building a neighbour-joining phylogenetic tree from a long distance matrix "
-                "and returning it as a single-row Newick string. The table arg is "
-                "`(SELECT id_1, id_2, distance FROM ...)` — typically a `beta_diversity` matrix (columns "
-                "default to positional 1/2/3; override with `id_1 :=`, `id_2 :=`, `distance :=`). "
-                "Neighbour-joining reconstructs an unrooted tree whose pairwise path lengths approximate "
-                "the input distances. Returns one row with the `newick` string, which you can store and "
-                "inspect with `skbio.tree.tip_count` / `total_branch_length` or render with any Newick "
-                "viewer."
-            ),
-            "vgi.doc_md": (
-                "**Neighbour joining** — a tree from a distance matrix.\n\n"
-                "- Table arg: `(SELECT id_1, id_2, distance FROM ...)` (e.g. `beta_diversity` output; "
-                "positional 1/2/3 by default)\n"
-                "- Reconstructs an unrooted tree approximating the pairwise distances\n"
-                "- Returns one row: `newick` (a Newick-format `VARCHAR`)\n"
-                "- Inspect with `tip_count` / `total_branch_length`"
-            ),
-        }
+    FunctionArguments: ClassVar[type] = _BuildArgs
+    BUILDER: ClassVar[Callable[..., Any]]
 
     @classmethod
-    def on_bind(cls, params: BindParams[_NjArgs]) -> BindResponse:
+    def on_bind(cls, params: BindParams[_BuildArgs]) -> BindResponse:
         """Validate columns and fix the single-column Newick output schema."""
         a = params.args
         input_schema = params.bind_call.input_schema
         assert input_schema is not None
         resolve_pair_columns(input_schema, a.id_1, a.id_2, a.distance)
         return BindResponse(
-            output_schema=pa.schema([sfield("newick", pa.string(), "Neighbour-joining tree (Newick).", nullable=False)])
+            output_schema=pa.schema([sfield("newick", pa.string(), "The tree in Newick format.", nullable=False)])
         )
 
     @classmethod
-    def initial_finalize_state(cls, finalize_state_id: bytes, params: TableBufferingParams[_NjArgs]) -> DrainState:
+    def initial_finalize_state(cls, finalize_state_id: bytes, params: TableBufferingParams[_BuildArgs]) -> DrainState:
         """Start a fresh single-shot finalize cursor."""
         return DrainState()
 
     @classmethod
     def finalize(
         cls,
-        params: TableBufferingParams[_NjArgs],
+        params: TableBufferingParams[_BuildArgs],
         finalize_state_id: bytes,
         state: DrainState,
         out: OutputCollector,
     ) -> None:
-        """Reconstruct the matrix, run neighbour joining, and emit one Newick row, once."""
+        """Reconstruct the matrix, build the tree, and emit one Newick row, once."""
         if state.done:
             out.finish()
             return
@@ -120,32 +100,95 @@ class NeighborJoining(SinkBuffer[_NjArgs, DrainState]):
         out.emit(pa.RecordBatch.from_pydict(cls.encode(table, params.args), schema=out_schema))
 
     @classmethod
-    def encode(cls, table: pa.Table, args: _NjArgs) -> dict[str, list[Any]]:
-        """Run neighbour joining and return the single Newick string column."""
-        from skbio.tree import nj
-
+    def encode(cls, table: pa.Table, args: _BuildArgs) -> dict[str, list[Any]]:
+        """Build the tree and return the single Newick string column."""
         id1, id2, dist = resolve_pair_columns(table.schema, args.id_1, args.id_2, args.distance)
         dm = distance_matrix_from_long(table, id1, id2, dist)
-        newick = str(nj(dm)).strip()
-        return {"newick": [newick]}
+        return {"newick": [str(cls.BUILDER(dm)).strip()]}
+
+
+def _make_builder(name: str, builder: Any, blurb: str) -> type:
+    """Generate a distance-matrix tree-builder class."""
+    example = FunctionExample(
+        sql=(
+            f"SELECT newick FROM skbio.tree.{name}((SELECT * FROM "
+            "(VALUES ('a','b',5),('a','c',9),('a','d',9),('b','c',10),('b','d',10),('c','d',8)) "
+            "AS d(id_1, id_2, distance)))"
+        ),
+        description=f"{name} tree of a 4-taxon distance matrix",
+    )
+    meta = type(
+        "Meta",
+        (),
+        {
+            "__doc__": f"VGI metadata for the {name} function.",
+            "name": name,
+            "description": f"Build a {name} tree from a distance matrix (Newick output)",
+            "categories": ["tree", "phylogenetics"],
+            "examples": [example],
+            "tags": {
+                "vgi.category": "construction",
+                "vgi.result_columns_md": columns_md_rows([("newick", "VARCHAR", "The tree in Newick format.")]),
+                "vgi.doc_llm": (
+                    f"Table function building a phylogenetic tree from a long distance matrix and returning "
+                    f"it as a single-row Newick string. {blurb} The table arg is "
+                    f"`(SELECT id_1, id_2, distance FROM ...)` — typically a `beta_diversity` matrix "
+                    f"(columns default to positional 1/2/3). Inspect the result with `tip_count` / "
+                    f"`total_branch_length` / `tree_height` or compare trees with `robinson_foulds`."
+                ),
+                "vgi.doc_md": (
+                    f"**{name}** — build a tree from a distance matrix.\n\n"
+                    f"{blurb}\n\n"
+                    "- Table arg: `(SELECT id_1, id_2, distance FROM ...)` (positional 1/2/3 by default)\n"
+                    "- Returns one row: `newick` (a Newick-format `VARCHAR`)"
+                ),
+            },
+        },
+    )
+
+    def _builder(dm: Any) -> Any:
+        import skbio.tree as tree_mod
+
+        return getattr(tree_mod, builder)(dm)
+
+    return type(
+        name.title().replace("_", ""),
+        (_TreeBuilder,),
+        {"__doc__": f"{name} tree builder.", "BUILDER": staticmethod(_builder), "Meta": meta},
+    )
+
+
+_BUILDER_FUNCTIONS: list[type] = [
+    _make_builder(
+        "neighbor_joining",
+        "nj",
+        "Neighbour joining reconstructs an unrooted tree whose pairwise path lengths approximate the input "
+        "distances — the standard distance-based method.",
+    ),
+    _make_builder(
+        "upgma",
+        "upgma",
+        "UPGMA builds a rooted, ultrametric tree by repeatedly joining the closest clusters (average "
+        "linkage); it assumes a molecular clock.",
+    ),
+    _make_builder(
+        "gme",
+        "gme",
+        "Greedy minimum evolution builds an unrooted tree by greedily minimising total tree length — fast "
+        "for large matrices.",
+    ),
+    _make_builder(
+        "bme",
+        "bme",
+        "Balanced minimum evolution builds an unrooted tree minimising a balanced tree-length criterion "
+        "(the objective FastME optimises).",
+    ),
+]
 
 
 # ===========================================================================
-# Newick inspection scalars
+# Inspection scalars (properties of one Newick string)
 # ===========================================================================
-
-
-def _read_tree(newick: str) -> Any:
-    """Parse a Newick string into a scikit-bio TreeNode."""
-    import warnings
-
-    from skbio.tree import TreeNode
-
-    with warnings.catch_warnings():
-        # A malformed string trips a noisy format-sniffing warning before the
-        # parse fails; the caller already turns that failure into NULL.
-        warnings.simplefilter("ignore")
-        return TreeNode.read([newick], format="newick")
 
 
 class TipCount(ScalarFunction):
@@ -164,11 +207,12 @@ class TipCount(ScalarFunction):
             )
         ]
         tags = {
+            "vgi.category": "inspection",
             "vgi.doc_llm": (
                 "Scalar function returning the number of tips (leaf nodes / taxa) in a Newick-format tree "
-                "as a `BIGINT`. Pass one `VARCHAR` column of Newick strings (e.g. the output of "
-                "`skbio.tree.neighbor_joining`). NULL or unparseable input returns NULL. Use it to size "
-                "trees stored per row without leaving SQL."
+                "as a `BIGINT`. Pass one `VARCHAR` column of Newick strings (e.g. the output of a tree "
+                "builder). NULL or unparseable input returns NULL. Use it to size trees stored per row "
+                "without leaving SQL."
             ),
             "vgi.doc_md": (
                 "**tip_count** — number of leaves in a Newick tree.\n\n"
@@ -211,12 +255,12 @@ class TotalBranchLength(ScalarFunction):
             )
         ]
         tags = {
+            "vgi.category": "inspection",
             "vgi.doc_llm": (
                 "Scalar function returning the total branch length of a Newick-format tree as a `DOUBLE`: "
-                "the sum of every branch length in the tree. Pass one `VARCHAR` column of Newick strings "
-                "(e.g. from `skbio.tree.neighbor_joining`). Branches without an explicit length count as "
-                "zero; NULL or unparseable input returns NULL. This is Faith's phylogenetic-diversity "
-                "measure when the tree spans a sample's features."
+                "the sum of every branch length. Pass one `VARCHAR` column of Newick strings. Branches "
+                "without an explicit length count as zero; NULL or unparseable input returns NULL. This is "
+                "Faith's phylogenetic-diversity measure when the tree spans a sample's features."
             ),
             "vgi.doc_md": (
                 "**total_branch_length** — sum of all branch lengths in a Newick tree.\n\n"
@@ -245,4 +289,212 @@ class TotalBranchLength(ScalarFunction):
         return pa.array(out, type=pa.float64())
 
 
-TREE_FUNCTIONS: list[type] = [NeighborJoining, TipCount, TotalBranchLength]
+class TreeHeight(ScalarFunction):
+    """Height of a Newick tree (maximum root-to-tip distance)."""
+
+    class Meta:
+        """VGI metadata for the tree_height scalar."""
+
+        name = "tree_height"
+        description = "Height of a Newick tree (maximum root-to-tip branch-length distance)"
+        categories = ["tree", "phylogenetics"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.tree.tree_height('((a:2,b:3):3,d:4,c:4);')",
+                description="Height (deepest tip) of an inline Newick tree",
+            )
+        ]
+        tags = {
+            "vgi.category": "inspection",
+            "vgi.doc_llm": (
+                "Scalar function returning the height of a Newick-format tree as a `DOUBLE`: the maximum "
+                "branch-length distance from the root to any tip. Pass one `VARCHAR` column of Newick "
+                "strings. Missing branch lengths count as zero; NULL or unparseable input returns NULL. For "
+                "an ultrametric tree (e.g. from `upgma`) every tip is at this height."
+            ),
+            "vgi.doc_md": (
+                "**tree_height** — deepest root-to-tip distance in a Newick tree.\n\n"
+                "- Input: one `VARCHAR` Newick column\n"
+                "- Returns: `DOUBLE` height (NULL for NULL/unparseable input)\n"
+                "- For ultrametric trees (`upgma`) all tips sit at this height"
+            ),
+        }
+
+    @classmethod
+    def compute(
+        cls,
+        newick: Annotated[pa.StringArray, Param(doc="A Newick tree")],
+    ) -> Annotated[pa.DoubleArray, Returns(pa.float64())]:
+        """Return each tree's height (NULL for unparseable input)."""
+        out: list[float | None] = []
+        for raw in newick.to_pylist():
+            if raw is None:
+                out.append(None)
+                continue
+            try:
+                tree = _read_tree(str(raw))
+                out.append(float(max((tree.distance(tip) for tip in tree.tips()), default=0.0)))
+            except Exception:
+                out.append(None)
+        return pa.array(out, type=pa.float64())
+
+
+# ===========================================================================
+# Comparison scalars (distance between two Newick trees)
+# ===========================================================================
+
+
+def _compare(newick1: pa.Array, newick2: pa.Array, fn: Callable[[Any, Any], float]) -> pa.Array:
+    """Apply a two-tree comparison to each row (NULL on NULL/unparseable)."""
+    out: list[float | None] = []
+    for a, b in zip(newick1.to_pylist(), newick2.to_pylist(), strict=False):
+        if a is None or b is None:
+            out.append(None)
+            continue
+        try:
+            out.append(float(fn(_read_tree(str(a)), _read_tree(str(b)))))
+        except Exception:
+            out.append(None)
+    return pa.array(out, type=pa.float64())
+
+
+class RobinsonFoulds(ScalarFunction):
+    """Robinson-Foulds (symmetric-difference) topological distance between two trees."""
+
+    class Meta:
+        """VGI metadata for the robinson_foulds scalar."""
+
+        name = "robinson_foulds"
+        description = "Robinson-Foulds topological distance between two Newick trees"
+        categories = ["tree", "phylogenetics"]
+        examples = [
+            FunctionExample(
+                sql="SELECT skbio.tree.robinson_foulds('((a,b),(c,d));', '((a,c),(b,d));')",
+                description="Topological distance between two tree shapes",
+            )
+        ]
+        tags = {
+            "vgi.category": "comparison",
+            "vgi.doc_llm": (
+                "Scalar function returning the Robinson-Foulds distance between two Newick trees as a "
+                "`DOUBLE`: the number of bipartitions (splits) present in one tree but not the other — a "
+                "purely topological distance ignoring branch lengths. Pass two `VARCHAR` Newick columns "
+                "over the same taxa; 0 means identical topologies, larger means more different. NULL or "
+                "unparseable input returns NULL."
+            ),
+            "vgi.doc_md": (
+                "**robinson_foulds** — topological distance between two Newick trees.\n\n"
+                "- Inputs: two `VARCHAR` Newick columns over the same taxa\n"
+                "- Returns: `DOUBLE` split-difference count (0 = identical topology); ignores branch lengths\n"
+                "- NULL for NULL/unparseable input"
+            ),
+        }
+
+    @classmethod
+    def compute(
+        cls,
+        newick1: Annotated[pa.StringArray, Param(doc="First Newick tree")],
+        newick2: Annotated[pa.StringArray, Param(doc="Second Newick tree")],
+    ) -> Annotated[pa.DoubleArray, Returns(pa.float64())]:
+        """Return the Robinson-Foulds distance per row (NULL on NULL/invalid input)."""
+        return _compare(newick1, newick2, lambda a, b: a.compare_rfd(b))
+
+
+class WeightedRobinsonFoulds(ScalarFunction):
+    """Weighted Robinson-Foulds distance (uses branch lengths) between two trees."""
+
+    class Meta:
+        """VGI metadata for the weighted_robinson_foulds scalar."""
+
+        name = "weighted_robinson_foulds"
+        description = "Weighted Robinson-Foulds distance (branch-length aware) between two Newick trees"
+        categories = ["tree", "phylogenetics"]
+        examples = [
+            FunctionExample(
+                sql=(
+                    "SELECT skbio.tree.weighted_robinson_foulds("
+                    "'((a:1,b:1):1,(c:1,d:1):1);', '((a:1,c:1):1,(b:1,d:1):1);')"
+                ),
+                description="Branch-length-aware tree distance",
+            )
+        ]
+        tags = {
+            "vgi.category": "comparison",
+            "vgi.doc_llm": (
+                "Scalar function returning the weighted Robinson-Foulds distance between two Newick trees "
+                "as a `DOUBLE`: like the Robinson-Foulds distance but summing the branch-length differences "
+                "of matched and unmatched splits, so it reflects both topology and branch lengths. Pass two "
+                "`VARCHAR` Newick columns over the same taxa; 0 means identical. NULL or unparseable input "
+                "returns NULL."
+            ),
+            "vgi.doc_md": (
+                "**weighted_robinson_foulds** — branch-length-aware tree distance.\n\n"
+                "- Inputs: two `VARCHAR` Newick columns over the same taxa\n"
+                "- Returns: `DOUBLE` distance combining topology and branch lengths (0 = identical)\n"
+                "- NULL for NULL/unparseable input"
+            ),
+        }
+
+    @classmethod
+    def compute(
+        cls,
+        newick1: Annotated[pa.StringArray, Param(doc="First Newick tree")],
+        newick2: Annotated[pa.StringArray, Param(doc="Second Newick tree")],
+    ) -> Annotated[pa.DoubleArray, Returns(pa.float64())]:
+        """Return the weighted Robinson-Foulds distance per row (NULL on NULL/invalid input)."""
+        return _compare(newick1, newick2, lambda a, b: a.compare_wrfd(b))
+
+
+class CopheneticDistance(ScalarFunction):
+    """Distance between two trees based on their tip-to-tip (cophenetic) distances."""
+
+    class Meta:
+        """VGI metadata for the cophenetic_distance scalar."""
+
+        name = "cophenetic_distance"
+        description = "Distance between two Newick trees based on tip-to-tip distances"
+        categories = ["tree", "phylogenetics"]
+        examples = [
+            FunctionExample(
+                sql=(
+                    "SELECT skbio.tree.cophenetic_distance('((a:1,b:1):1,(c:1,d:1):1);', '((a:1,c:1):5,(b:1,d:1):5);')"
+                ),
+                description="Cophenetic distance between two trees",
+            )
+        ]
+        tags = {
+            "vgi.category": "comparison",
+            "vgi.doc_llm": (
+                "Scalar function returning the cophenetic distance between two Newick trees as a `DOUBLE`: "
+                "a distance derived from how much their tip-to-tip path-length distance matrices disagree "
+                "over the shared taxa (0 means the trees imply identical pairwise distances, larger means "
+                "more different). Unlike Robinson-Foulds it is branch-length sensitive. Pass two `VARCHAR` "
+                "Newick columns; NULL or unparseable input returns NULL."
+            ),
+            "vgi.doc_md": (
+                "**cophenetic_distance** — disagreement of two trees' tip-to-tip distances.\n\n"
+                "- Inputs: two `VARCHAR` Newick columns (shared taxa)\n"
+                "- Returns: `DOUBLE` distance (0 = identical pairwise distances); branch-length sensitive\n"
+                "- NULL for NULL/unparseable input"
+            ),
+        }
+
+    @classmethod
+    def compute(
+        cls,
+        newick1: Annotated[pa.StringArray, Param(doc="First Newick tree")],
+        newick2: Annotated[pa.StringArray, Param(doc="Second Newick tree")],
+    ) -> Annotated[pa.DoubleArray, Returns(pa.float64())]:
+        """Return the cophenetic distance per row (NULL on NULL/invalid input)."""
+        return _compare(newick1, newick2, lambda a, b: a.compare_cophenet(b))
+
+
+TREE_FUNCTIONS: list[type] = [
+    *_BUILDER_FUNCTIONS,
+    TipCount,
+    TotalBranchLength,
+    TreeHeight,
+    RobinsonFoulds,
+    WeightedRobinsonFoulds,
+    CopheneticDistance,
+]

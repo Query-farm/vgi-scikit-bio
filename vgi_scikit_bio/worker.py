@@ -266,6 +266,7 @@ _SCHEMA_CATEGORIES: dict[str, list[dict[str, str]]] = {
     "tree": [
         {"name": "construction", "description": "Build a phylogenetic tree from a distance matrix."},
         {"name": "inspection", "description": "Read properties of a tree given as a Newick string."},
+        {"name": "comparison", "description": "Compare two trees given as Newick strings."},
     ],
 }
 
@@ -293,10 +294,7 @@ _FUNCTION_CATEGORY: dict[str, str] = {
     "mantel": "hypothesis-tests",
     "clr": "composition",
     "ilr": "composition",
-    # tree
-    "neighbor_joining": "construction",
-    "tip_count": "inspection",
-    "total_branch_length": "inspection",
+    # tree functions and the alignment schema self-declare vgi.category in their Meta.
 }
 
 # Per-schema metadata. Each schema carries a concept-focused description (VGI173:

@@ -31,6 +31,14 @@ SELECT skbio.tree.tip_count(newick) FROM skbio.tree.neighbor_joining((SELECT * F
 ----
 4
 
+# the other builders (upgma, gme, bme) also produce 4-tip trees
+query I
+SELECT skbio.tree.tip_count((SELECT newick FROM skbio.tree.upgma((SELECT * FROM dm)))) = 4
+   AND skbio.tree.tip_count((SELECT newick FROM skbio.tree.gme((SELECT * FROM dm)))) = 4
+   AND skbio.tree.tip_count((SELECT newick FROM skbio.tree.bme((SELECT * FROM dm)))) = 4;
+----
+true
+
 # ============================================================================
 # Newick inspection scalars
 # ============================================================================
@@ -45,11 +53,33 @@ SELECT round(skbio.tree.total_branch_length('((a:2,b:3):3,d:4,c:4);'), 1);
 ----
 16.0
 
+query I
+SELECT round(skbio.tree.tree_height('((a:2,b:3):3,d:4,c:4);'), 1);
+----
+6.0
+
 # NULL / unparseable input degrades to NULL
 query II
 SELECT skbio.tree.tip_count(NULL) IS NULL, skbio.tree.tip_count('not a tree') IS NULL;
 ----
 true	true
+
+# ============================================================================
+# Tree comparison scalars
+# ============================================================================
+
+# Robinson-Foulds: 0 for identical topology, > 0 for a different one
+query II
+SELECT skbio.tree.robinson_foulds('((a,b),(c,d));', '((a,b),(c,d));'),
+       skbio.tree.robinson_foulds('((a,b),(c,d));', '((a,c),(b,d));') > 0;
+----
+0.0	true
+
+# cophenetic distance is 0 between a tree and itself
+query I
+SELECT skbio.tree.cophenetic_distance('((a:1,b:1):1,(c:1,d:1):1);', '((a:1,b:1):1,(c:1,d:1):1);');
+----
+0.0
 
 statement ok
 DETACH skbio;
