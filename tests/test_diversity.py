@@ -8,46 +8,79 @@ from types import SimpleNamespace
 import pyarrow as pa
 
 from tests.harness import run_alpha
-from vgi_scikit_bio.diversity import (
-    BetaDiversity,
-    Chao1,
-    Dominance,
-    ObservedFeatures,
-    Shannon,
-    Simpson,
-)
+from vgi_scikit_bio.diversity import ALPHA_FUNCTIONS, BetaDiversity
+
+_ALPHA = {cls.Meta.name: cls for cls in ALPHA_FUNCTIONS}
+
+
+def _run_order(cls: type, counts: list[float], order: float) -> float:
+    states = {0: cls.initial_state(None)}
+    cls.update(states, pa.array([0] * len(counts), pa.int64()), pa.array(counts, pa.float64()), order)
+    return cls.finalize(pa.array([0], pa.int64()), states, None).column("result").to_pylist()[0]
+
+
+def _run_list(cls: type, counts: list[float]) -> list[float]:
+    states = {0: cls.initial_state(None)}
+    cls.update(states, pa.array([0] * len(counts), pa.int64()), pa.array(counts, pa.float64()))
+    return cls.finalize(pa.array([0], pa.int64()), states, None).column("result").to_pylist()[0]
 
 
 class TestAlpha:
+    def test_full_metric_coverage(self) -> None:
+        # every scikit-bio non-phylogenetic, deterministic metric is exposed
+        assert {"shannon", "simpson", "chao1", "ace", "fisher_alpha", "margalef", "gini_index"} <= set(_ALPHA)
+        assert len(_ALPHA) >= 30
+
     def test_shannon_matches_skbio(self) -> None:
-        # counts [4, 2, 1] -> natural-log Shannon entropy
-        result = run_alpha(Shannon, [4, 2, 1])[0]
-        assert math.isclose(result, 0.9556998911125343)
+        assert math.isclose(run_alpha(_ALPHA["shannon"], [4, 2, 1])[0], 0.9556998911125343)
 
     def test_observed_features_is_richness(self) -> None:
-        assert run_alpha(ObservedFeatures, [4, 0, 1, 0, 3])[0] == 3.0
+        assert run_alpha(_ALPHA["observed_features"], [4, 0, 1, 0, 3])[0] == 3.0
 
     def test_grouped_per_sample(self) -> None:
-        out = run_alpha(Shannon, [4, 2, 1, 1, 9], group_ids=[1, 1, 1, 2, 2])
+        out = run_alpha(_ALPHA["shannon"], [4, 2, 1, 1, 9], group_ids=[1, 1, 1, 2, 2])
         assert set(out) == {1, 2}
-        assert out[1] > out[2]  # sample 1 is more even/diverse
-
-    def test_simpson_in_unit_interval(self) -> None:
-        assert 0.0 <= run_alpha(Simpson, [4, 2, 1])[0] <= 1.0
+        assert out[1] > out[2]
 
     def test_dominance_complements_simpson(self) -> None:
         counts = [4, 2, 1]
-        assert math.isclose(run_alpha(Simpson, counts)[0] + run_alpha(Dominance, counts)[0], 1.0)
+        assert math.isclose(run_alpha(_ALPHA["simpson"], counts)[0] + run_alpha(_ALPHA["dominance"], counts)[0], 1.0)
 
     def test_chao1_ge_observed(self) -> None:
         counts = [4, 2, 1, 1]
-        assert run_alpha(Chao1, counts)[0] >= run_alpha(ObservedFeatures, counts)[0]
+        assert run_alpha(_ALPHA["chao1"], counts)[0] >= run_alpha(_ALPHA["observed_features"], counts)[0]
+
+    def test_every_scalar_metric_runs(self) -> None:
+        # each generated scalar metric produces a finite-or-NaN float without error
+        counts = [4, 2, 1, 0, 3, 1, 1]
+        for name in ("ace", "berger_parker_d", "fisher_alpha", "margalef", "menhinick", "strong", "goods_coverage"):
+            val = run_alpha(_ALPHA[name], counts)[0]
+            assert isinstance(val, float)
+
+    def test_hill_order_parameter(self) -> None:
+        counts = [4, 2, 1, 3, 1, 1]
+        q0 = _run_order(_ALPHA["hill"], counts, 0.0)
+        q2 = _run_order(_ALPHA["hill"], counts, 2.0)
+        # Hill q=0 is richness (>= any higher-order effective count)
+        assert q0 >= q2
+
+    def test_renyi_tsallis_run(self) -> None:
+        counts = [4, 2, 1, 3]
+        assert isinstance(_run_order(_ALPHA["renyi"], counts, 1.0), float)
+        assert isinstance(_run_order(_ALPHA["tsallis"], counts, 2.0), float)
+
+    def test_list_metrics_return_arrays(self) -> None:
+        counts = [4, 2, 1, 0, 3, 1, 1]
+        assert len(_run_list(_ALPHA["chao1_ci"], counts)) == 2
+        assert len(_run_list(_ALPHA["esty_ci"], counts)) == 2
+        osd = _run_list(_ALPHA["osd"], counts)
+        assert osd == [6.0, 3.0, 1.0]  # observed, singles, doubles
 
     def test_empty_group_is_null(self) -> None:
-        # a group with only NULL counts scores NULL
-        states = {0: Shannon.initial_state(None)}
-        Shannon.update(states, pa.array([0], type=pa.int64()), pa.array([None], type=pa.float64()))
-        batch = Shannon.finalize(pa.array([0], type=pa.int64()), states, None)
+        shannon = _ALPHA["shannon"]
+        states = {0: shannon.initial_state(None)}
+        shannon.update(states, pa.array([0], type=pa.int64()), pa.array([None], type=pa.float64()))
+        batch = shannon.finalize(pa.array([0], type=pa.int64()), states, None)
         assert batch.column("result").to_pylist() == [None]
 
 

@@ -277,14 +277,8 @@ _FUNCTION_CATEGORY: dict[str, str] = {
     "hamming_distance": "distance",
     "kmer_frequencies": "composition",
     "residue_frequencies": "composition",
-    # diversity
-    "shannon": "alpha",
-    "simpson": "alpha",
-    "inv_simpson": "alpha",
-    "observed_features": "alpha",
-    "chao1": "alpha",
-    "pielou_evenness": "alpha",
-    "dominance": "alpha",
+    # diversity — the alpha metrics self-declare vgi.category = "alpha" in their
+    # generated Meta (see diversity._make_alpha); only beta_diversity is manual.
     "beta_diversity": "beta",
     # stats
     "pcoa": "ordination",

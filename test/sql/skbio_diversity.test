@@ -54,6 +54,28 @@ FROM ft GROUP BY sample_id ORDER BY sample_id;
 1	0.9557
 2	0.3251
 
+# Additional metrics (full scikit-bio coverage): Fisher's alpha, Margalef, singles
+query III
+SELECT round(skbio.diversity.fisher_alpha(count), 4),
+       round(skbio.diversity.margalef(count), 4),
+       skbio.diversity.singles(count)::BIGINT
+FROM ft WHERE sample_id = 1;
+----
+1.9888	1.0278	1
+
+# Parameterized Hill number: q=0 equals observed richness
+query I
+SELECT skbio.diversity.hill(count, q := 0)::BIGINT = skbio.diversity.observed_features(count)::BIGINT
+FROM ft WHERE sample_id = 1;
+----
+true
+
+# List-returning metric: osd = [observed, singles, doubles]
+query I
+SELECT skbio.diversity.osd(count) FROM ft WHERE sample_id = 1;
+----
+[3.0, 1.0, 1.0]
+
 # ============================================================================
 # Beta diversity (distance matrix, long output)
 # ============================================================================

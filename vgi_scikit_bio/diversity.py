@@ -29,7 +29,7 @@ import numpy.typing as npt
 import pyarrow as pa
 from skbio.diversity import alpha as skalpha
 from vgi.aggregate_function import AggregateFunction
-from vgi.arguments import Arg, Param, Returns, TableInput
+from vgi.arguments import Arg, ConstParam, Param, Returns, TableInput
 from vgi.invocation import BindResponse
 from vgi.metadata import FunctionExample
 from vgi.table_buffering_function import TableBufferingParams
@@ -48,19 +48,25 @@ from .schema_utils import field as sfield
 
 @dataclass(kw_only=True)
 class CountState(ArrowSerializableDataclass):
-    """Buffered abundance counts for one sample (group)."""
+    """Buffered abundance counts for one sample (group), plus the diversity order q.
 
-    counts: list[float] = field(default_factory=list)
-
-
-class _AlphaMetric(AggregateFunction[CountState]):
-    """Buffer a sample's feature counts, then score one alpha-diversity metric.
-
-    Subclasses set ``METRIC`` (a ``skbio.diversity.alpha`` callable) and a
-    ``Meta``.
+    Attributes:
+        counts: The buffered abundance values for the sample.
+        order: The diversity order q, for the parameterized metrics (else unused).
     """
 
-    METRIC: ClassVar[Callable[[npt.NDArray[np.int64]], Any]]
+    counts: list[float] = field(default_factory=list)
+    order: float = 1.0
+
+
+class _AlphaScalar(AggregateFunction[CountState]):
+    """Buffer a sample's feature counts, then score one scalar alpha-diversity metric.
+
+    Subclasses set ``METRIC`` (a ``skbio.diversity.alpha`` callable) and a
+    ``Meta``; most are generated from ``_SCALAR_SPECS`` by ``_make_alpha``.
+    """
+
+    METRIC: ClassVar[Callable[..., Any]]
 
     @classmethod
     def initial_state(cls, params: ProcessParams[None]) -> CountState:
@@ -82,12 +88,17 @@ class _AlphaMetric(AggregateFunction[CountState]):
             batch.setdefault(g, []).append(c)
         for g, cs in batch.items():
             s = states[g]
-            states[g] = CountState(counts=s.counts + cs)
+            states[g] = CountState(counts=s.counts + cs, order=s.order)
 
     @classmethod
     def combine(cls, source: CountState, target: CountState, params: ProcessParams[None]) -> CountState:
         """Merge two partial count buffers for the same sample."""
-        return CountState(counts=source.counts + target.counts)
+        return CountState(counts=source.counts + target.counts, order=source.order or target.order)
+
+    @classmethod
+    def _score(cls, counts: npt.NDArray[np.int64], state: CountState) -> Any:
+        """Score one sample's integer counts (overridden by parameterized/list metrics)."""
+        return float(cls.METRIC(counts))
 
     @classmethod
     def finalize(
@@ -97,7 +108,7 @@ class _AlphaMetric(AggregateFunction[CountState]):
         params: ProcessParams[None],
     ) -> Annotated[pa.RecordBatch, Returns(pa.float64())]:
         """Score each sample's buffered counts, emitting NULL for empty/failing samples."""
-        results: list[float | None] = []
+        results: list[Any] = []
         for gid in group_ids:
             s = states.get(gid.as_py())
             if s is None or not s.counts:
@@ -105,18 +116,75 @@ class _AlphaMetric(AggregateFunction[CountState]):
                 continue
             counts = np.rint(np.asarray(s.counts, dtype=np.float64)).astype(np.int64)
             try:
-                results.append(float(cls.METRIC(counts)))
+                results.append(cls._score(counts, s))
             except Exception:
                 results.append(None)
-        return pa.record_batch({"result": pa.array(results, type=pa.float64())})
+        return pa.record_batch({"result": pa.array(results, type=cls._result_type())})
+
+    @classmethod
+    def _result_type(cls) -> pa.DataType:
+        """Arrow type of the aggregate result (float64 for scalars)."""
+        return pa.float64()
 
 
-def _alpha_example(name: str) -> list[FunctionExample]:
+class _AlphaOrder(_AlphaScalar):
+    """Alpha metric parameterized by a diversity order ``q`` (hill/renyi/tsallis)."""
+
+    @classmethod
+    def update(  # type: ignore[override]  # framework reads each aggregate's own update signature
+        cls,
+        states: dict[int, CountState],
+        group_ids: pa.Int64Array,
+        count: Annotated[pa.DoubleArray, Param(doc="Abundance value")],
+        q: Annotated[float, ConstParam(doc="Diversity order (0 = richness, 1 = Shannon-like, 2 = Simpson-like)")],
+    ) -> None:
+        """Accumulate counts and record the requested diversity order q per sample."""
+        batch: dict[int, list[float]] = {}
+        for g, c in zip(group_ids.to_pylist(), count.to_pylist(), strict=False):
+            if c is None:
+                continue
+            batch.setdefault(g, []).append(c)
+        for g, cs in batch.items():
+            s = states[g]
+            states[g] = CountState(counts=s.counts + cs, order=q)
+
+    @classmethod
+    def _score(cls, counts: npt.NDArray[np.int64], state: CountState) -> Any:
+        """Score at the sample's recorded order q."""
+        return float(cls.METRIC(counts, order=state.order))
+
+
+class _AlphaList(_AlphaScalar):
+    """Alpha metric that returns a fixed-length ``DOUBLE[]`` (confidence intervals, osd)."""
+
+    @classmethod
+    def _score(cls, counts: npt.NDArray[np.int64], state: CountState) -> Any:
+        """Return the metric's tuple/array result as a list of floats."""
+        return [float(v) for v in cls.METRIC(counts)]
+
+    @classmethod
+    def _result_type(cls) -> pa.DataType:
+        """The result is a list of doubles."""
+        return pa.list_(pa.float64())
+
+    @classmethod
+    def finalize(
+        cls,
+        group_ids: pa.Int64Array,
+        states: dict[int, CountState],
+        params: ProcessParams[None],
+    ) -> Annotated[pa.RecordBatch, Returns(pa.list_(pa.float64()))]:
+        """List-typed finalize (shares scoring with the scalar base)."""
+        return super().finalize(group_ids, states, params)
+
+
+def _alpha_example(name: str, *, order: bool = False) -> list[FunctionExample]:
     """Build a one-entry example list for an alpha metric named ``name``."""
+    order_arg = ", q := 1" if order else ""
     return [
         FunctionExample(
             sql=(
-                f"SELECT sample_id, skbio.diversity.{name}(count) FROM "
+                f"SELECT sample_id, skbio.diversity.{name}(count{order_arg}) FROM "
                 "(VALUES (1,'a',4),(1,'b',2),(1,'c',1),(2,'a',1),(2,'b',9)) AS t(sample_id, feature_id, count) "
                 "GROUP BY sample_id"
             ),
@@ -125,164 +193,218 @@ def _alpha_example(name: str) -> list[FunctionExample]:
     ]
 
 
-def _alpha_doc(name: str, blurb: str) -> dict[str, str]:
+def _alpha_doc(name: str, blurb: str, *, returns: str = "a single `DOUBLE` per sample") -> dict[str, str]:
     """Build the doc tags for an alpha metric named ``name``."""
     return {
         "vgi.doc_llm": (
-            f"Aggregate computing the **{name}** alpha-diversity metric over a sample's feature abundance "
-            f"counts. {blurb} Pass the `count` column of a long feature table and `GROUP BY` the sample "
-            "id, so each group yields one diversity value; NULL counts are skipped and counts are rounded "
-            "to integers. Returns a single `DOUBLE` per sample."
+            f"Aggregate computing the **{name}** alpha-diversity metric over one sample's feature abundance "
+            f"values. {blurb} Pass the `count` column of a long feature table and `GROUP BY` the sample "
+            f"id, so each group yields one result; NULL rows are skipped and values are rounded to "
+            f"integers. Returns {returns}."
         ),
         "vgi.doc_md": (
             f"**{name}** — {blurb}\n\n"
             "- Input: the `count` column of a long `(sample, feature, count)` table\n"
-            "- Use `GROUP BY sample_id` to get one value per sample\n"
-            "- Returns a `DOUBLE`; NULL counts skipped, counts rounded to integers"
+            "- Use `GROUP BY sample_id` to get one result per sample\n"
+            f"- Returns {returns}; NULL rows skipped, values rounded to integers"
         ),
     }
 
 
-class Shannon(_AlphaMetric):
-    """Shannon diversity index (natural log)."""
-
-    METRIC = staticmethod(skalpha.shannon)
-
-    class Meta:
-        """VGI metadata for the shannon aggregate."""
-
-        name = "shannon"
-        description = "Shannon diversity index of a sample's feature counts"
-        categories = ["diversity", "alpha"]
-        examples = _alpha_example("shannon")
-        tags = _alpha_doc(
-            "shannon",
-            "It combines richness and evenness as the entropy of the abundance distribution (natural log); "
-            "higher means more diverse.",
-        )
+def _camel(name: str) -> str:
+    """Turn a snake_case metric name into a CamelCase class name."""
+    return "".join(part.title() for part in name.split("_")) or "Alpha"
 
 
-class Simpson(_AlphaMetric):
-    """Simpson diversity index (1 - dominance)."""
-
-    METRIC = staticmethod(skalpha.simpson)
-
-    class Meta:
-        """VGI metadata for the simpson aggregate."""
-
-        name = "simpson"
-        description = "Simpson diversity index (1 - dominance) of a sample's feature counts"
-        categories = ["diversity", "alpha"]
-        examples = _alpha_example("simpson")
-        tags = _alpha_doc(
-            "simpson",
-            "It is the probability that two individuals drawn at random belong to different features "
-            "(1 - dominance), in [0, 1]; higher means more diverse.",
-        )
-
-
-class InvSimpson(_AlphaMetric):
-    """Inverse Simpson index (1 / dominance)."""
-
-    METRIC = staticmethod(skalpha.inv_simpson)
-
-    class Meta:
-        """VGI metadata for the inv_simpson aggregate."""
-
-        name = "inv_simpson"
-        description = "Inverse Simpson index (1 / dominance) of a sample's feature counts"
-        categories = ["diversity", "alpha"]
-        examples = _alpha_example("inv_simpson")
-        tags = _alpha_doc(
-            "inv_simpson",
-            "It is the reciprocal of Simpson's dominance, interpretable as the effective number of equally "
-            "abundant features; higher means more diverse.",
-        )
+def _make_alpha(
+    name: str,
+    fn: Callable[..., Any],
+    blurb: str,
+    *,
+    base: type = _AlphaScalar,
+    categories: list[str] | None = None,
+    order: bool = False,
+    returns: str = "a single `DOUBLE` per sample",
+) -> type:
+    """Generate an alpha-diversity aggregate class from a metric spec."""
+    meta = type(
+        "Meta",
+        (),
+        {
+            "__doc__": f"VGI metadata for the {name} aggregate.",
+            "name": name,
+            "description": f"{name} alpha-diversity metric over one sample's feature counts",
+            "categories": categories or ["diversity", "alpha"],
+            "examples": _alpha_example(name, order=order),
+            "tags": {**_alpha_doc(name, blurb, returns=returns), "vgi.category": "alpha"},
+        },
+    )
+    return type(
+        _camel(name), (base,), {"__doc__": f"{name} alpha-diversity metric.", "METRIC": staticmethod(fn), "Meta": meta}
+    )
 
 
-class ObservedFeatures(_AlphaMetric):
-    """Observed feature richness (number of non-zero features)."""
+# Scalar metrics (one DOUBLE per sample), each `fn(counts)` with scikit-bio defaults.
+_SCALAR_SPECS: list[tuple[str, str, str]] = [
+    (
+        "shannon",
+        "shannon",
+        "It is the entropy of the abundance distribution (natural log); higher means richer and more even.",
+    ),
+    (
+        "simpson",
+        "simpson",
+        "It is the chance two random individuals belong to different features (1 minus dominance), in [0, 1].",
+    ),
+    (
+        "inv_simpson",
+        "inv_simpson",
+        "It is the reciprocal of Simpson's dominance — the effective number of equally-abundant features.",
+    ),
+    (
+        "observed_features",
+        "observed_features",
+        "It is plain richness: the number of features with a non-zero abundance.",
+    ),
+    (
+        "chao1",
+        "chao1",
+        "It corrects observed richness with the singleton and doubleton counts to estimate unseen features.",
+    ),
+    (
+        "pielou_evenness",
+        "pielou_e",
+        "It is Shannon diversity over its maximum, measuring how evenly abundance spreads, in [0, 1].",
+    ),
+    (
+        "dominance",
+        "dominance",
+        "It is the chance two random individuals share a feature (Simpson's D); higher means a few dominate.",
+    ),
+    (
+        "ace",
+        "ace",
+        "It is the abundance-based coverage estimator of total richness, weighting the contribution of rare features.",
+    ),
+    (
+        "berger_parker_d",
+        "berger_parker_d",
+        "It is the proportional abundance of the single most abundant feature (Berger-Parker dominance).",
+    ),
+    (
+        "brillouin_d",
+        "brillouin_d",
+        "It is Brillouin's index, an entropy diversity for a fully-censused (not sampled) community.",
+    ),
+    ("doubles", "doubles", "It is the number of features observed exactly twice (doubletons)."),
+    ("singles", "singles", "It is the number of features observed exactly once (singletons)."),
+    (
+        "enspie",
+        "enspie",
+        "It is the effective species count from the probability of interspecific encounter (= inverse Simpson).",
+    ),
+    (
+        "fisher_alpha",
+        "fisher_alpha",
+        "It is Fisher's alpha, the parameter of the log-series model fitted to the abundance distribution.",
+    ),
+    (
+        "gini_index",
+        "gini_index",
+        "It is the Gini coefficient of the abundance distribution — the inequality of abundances, in [0, 1].",
+    ),
+    (
+        "goods_coverage",
+        "goods_coverage",
+        "It is Good's coverage estimate: the estimated proportion of the community that has actually been observed.",
+    ),
+    ("heip_evenness", "heip_e", "It is Heip's evenness index, a richness-corrected evenness in [0, 1]."),
+    (
+        "kempton_taylor_q",
+        "kempton_taylor_q",
+        "It is the Kempton-Taylor Q index, the slope of the ranked log-abundance curve between its quartiles.",
+    ),
+    ("margalef", "margalef", "It is Margalef's richness index: richness scaled by the natural log of the total count."),
+    (
+        "mcintosh_d",
+        "mcintosh_d",
+        "It is McIntosh's dominance index, based on the Euclidean norm of the abundance vector.",
+    ),
+    ("mcintosh_e", "mcintosh_e", "It is McIntosh's evenness index, in [0, 1]."),
+    (
+        "menhinick",
+        "menhinick",
+        "It is Menhinick's richness index: richness divided by the square root of the total count.",
+    ),
+    (
+        "robbins",
+        "robbins",
+        "It is the Robbins estimator of the probability that the next individual sampled belongs to an unseen feature.",
+    ),
+    (
+        "simpson_d",
+        "simpson_d",
+        "It is Simpson's dominance index D, the probability that two individuals share a feature.",
+    ),
+    (
+        "simpson_e",
+        "simpson_e",
+        "It is Simpson's evenness, the inverse-Simpson diversity divided by richness, in [0, 1].",
+    ),
+    (
+        "strong",
+        "strong",
+        "It is Strong's dominance index (DW): the peak departure of the cumulative-abundance curve from evenness.",
+    ),
+]
 
-    METRIC = staticmethod(skalpha.observed_features)
+# Parameterized metrics taking a diversity order q (required `order :=`).
+_ORDER_SPECS: list[tuple[str, str, str]] = [
+    (
+        "hill",
+        "hill",
+        "It is the Hill number of order q (effective feature count): q=0 richness, q~1 exp(Shannon), q=2 inv-Simpson.",
+    ),
+    (
+        "renyi",
+        "renyi",
+        "It is the Renyi entropy of order q, a family of diversity indices generalising richness/Shannon/Simpson.",
+    ),
+    ("tsallis", "tsallis", "It is the Tsallis entropy of order q, a non-extensive generalisation of Shannon entropy."),
+]
 
-    class Meta:
-        """VGI metadata for the observed_features aggregate."""
-
-        name = "observed_features"
-        description = "Observed richness: number of features present in a sample"
-        categories = ["diversity", "alpha", "richness"]
-        examples = _alpha_example("observed_features")
-        tags = _alpha_doc(
-            "observed_features",
-            "It is plain richness: the count of features with a non-zero abundance in the sample.",
-        )
-
-
-class Chao1(_AlphaMetric):
-    """Chao1 estimated richness (accounts for unobserved features)."""
-
-    METRIC = staticmethod(skalpha.chao1)
-
-    class Meta:
-        """VGI metadata for the chao1 aggregate."""
-
-        name = "chao1"
-        description = "Chao1 estimated richness of a sample (corrects for unseen features)"
-        categories = ["diversity", "alpha", "richness"]
-        examples = _alpha_example("chao1")
-        tags = _alpha_doc(
-            "chao1",
-            "It estimates total richness including unobserved features by correcting observed richness "
-            "with the number of singletons and doubletons; requires integer counts.",
-        )
-
-
-class PielouEvenness(_AlphaMetric):
-    """Pielou's evenness (Shannon / log richness), in [0, 1]."""
-
-    METRIC = staticmethod(skalpha.pielou_e)
-
-    class Meta:
-        """VGI metadata for the pielou_evenness aggregate."""
-
-        name = "pielou_evenness"
-        description = "Pielou's evenness of a sample's feature counts (in [0, 1])"
-        categories = ["diversity", "alpha", "evenness"]
-        examples = _alpha_example("pielou_evenness")
-        tags = _alpha_doc(
-            "pielou_evenness",
-            "It is Shannon diversity normalised by its maximum (log of richness), so it measures how "
-            "evenly abundance is spread across features, in [0, 1]; 1 is perfectly even.",
-        )
-
-
-class Dominance(_AlphaMetric):
-    """Simpson's dominance (probability two individuals share a feature)."""
-
-    METRIC = staticmethod(skalpha.dominance)
-
-    class Meta:
-        """VGI metadata for the dominance aggregate."""
-
-        name = "dominance"
-        description = "Simpson's dominance of a sample's feature counts (in [0, 1])"
-        categories = ["diversity", "alpha"]
-        examples = _alpha_example("dominance")
-        tags = _alpha_doc(
-            "dominance",
-            "It is the probability that two individuals drawn at random belong to the same feature, in "
-            "[0, 1]; higher means one/few features dominate (the complement of Simpson diversity).",
-        )
-
+# Metrics returning a fixed-length DOUBLE[] (confidence intervals, osd triple).
+_LIST_SPECS: list[tuple[str, str, str, str]] = [
+    (
+        "chao1_ci",
+        "chao1_ci",
+        "It is the confidence interval around the Chao1 richness estimate, as [lower, upper].",
+        "a 2-element `DOUBLE[]` `[lower, upper]` per sample",
+    ),
+    (
+        "esty_ci",
+        "esty_ci",
+        "It is Esty's confidence interval for the community coverage, as [lower, upper].",
+        "a 2-element `DOUBLE[]` `[lower, upper]` per sample",
+    ),
+    (
+        "osd",
+        "osd",
+        "It is the (observed richness, singletons, doubletons) triple used by richness estimators.",
+        "a 3-element `DOUBLE[]` `[observed, singles, doubles]` per sample",
+    ),
+]
 
 ALPHA_FUNCTIONS: list[type] = [
-    Shannon,
-    Simpson,
-    InvSimpson,
-    ObservedFeatures,
-    Chao1,
-    PielouEvenness,
-    Dominance,
+    *[_make_alpha(name, getattr(skalpha, attr), blurb) for name, attr, blurb in _SCALAR_SPECS],
+    *[
+        _make_alpha(name, getattr(skalpha, attr), blurb, base=_AlphaOrder, order=True)
+        for name, attr, blurb in _ORDER_SPECS
+    ],
+    *[
+        _make_alpha(name, getattr(skalpha, attr), blurb, base=_AlphaList, returns=returns)
+        for name, attr, blurb, returns in _LIST_SPECS
+    ],
 ]
 
 
@@ -290,18 +412,19 @@ ALPHA_FUNCTIONS: list[type] = [
 # Beta diversity (distance matrix as a table function)
 # ===========================================================================
 
-_BETA_METRICS = {
-    "braycurtis",
-    "jaccard",
-    "euclidean",
-    "cityblock",
-    "canberra",
-    "chebyshev",
-    "correlation",
-    "cosine",
-    "hamming",
-    "sqeuclidean",
-}
+
+def _nonphylo_beta_metrics() -> set[str]:
+    """Every scikit-bio beta metric that works on a plain counts matrix (excludes UniFrac).
+
+    The two UniFrac metrics are phylogenetic — they need a tree and are exposed
+    separately in ``vgi_scikit_bio.phylo`` — so they are filtered out here.
+    """
+    from skbio.diversity import get_beta_diversity_metrics
+
+    return {m for m in get_beta_diversity_metrics() if "unifrac" not in m}
+
+
+_BETA_METRICS = _nonphylo_beta_metrics()
 
 
 @dataclass(slots=True, frozen=True)
