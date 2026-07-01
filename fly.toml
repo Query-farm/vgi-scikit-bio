@@ -1,0 +1,36 @@
+app = 'vgi-scikit-bio'
+primary_region = 'iad'
+
+[build]
+
+[env]
+  VGI_HTTP_CORS_ORIGINS = '*'
+  # Shared BoundStorage (WAL SQLite) on the persistent volume, so framework
+  # state survives restarts. (Defaults are baked into the image too.)
+  VGI_WORKER_SQLITE_PATH = '/data/state/vgi_storage.db'
+
+# Persistent storage for the shared framework state. Create with:
+#   fly volumes create scikit_bio_state --size 1 --region iad
+[[mounts]]
+  source = 'scikit_bio_state'
+  destination = '/data'
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = '15s'
+    interval = '30s'
+    method = 'GET'
+    path = '/health'
+    protocol = 'http'
+    timeout = '5s'
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

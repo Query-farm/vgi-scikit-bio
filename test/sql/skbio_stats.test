@@ -1,0 +1,103 @@
+# name: test/sql/skbio_stats.test
+# description: Ordination (PCoA), distance tests (PERMANOVA/ANOSIM/Mantel), and CLR/ILR transforms
+# group: [vgi_scikit_bio]
+
+require-env VGI_SCIKIT_BIO_WORKER
+
+require vgi
+
+statement ok
+ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
+
+# ============================================================================
+# PCoA over a long distance matrix
+# ============================================================================
+
+statement ok
+CREATE TEMP TABLE dm AS SELECT * FROM (VALUES
+  ('a','a',0.0), ('a','b',0.5), ('a','c',0.7),
+  ('b','a',0.5), ('b','b',0.0), ('b','c',0.6),
+  ('c','a',0.7), ('c','b',0.6), ('c','c',0.0)
+) AS d(id_1, id_2, distance);
+
+# one row per sample
+query I
+SELECT count(*) FROM skbio.stats.pcoa((SELECT * FROM dm), n_components := 2);
+----
+3
+
+# output columns: sample_id + pc_1 + pc_2
+query I
+SELECT count(*) FROM (DESCRIBE SELECT * FROM skbio.stats.pcoa((SELECT * FROM dm), n_components := 2));
+----
+3
+
+# ============================================================================
+# PERMANOVA / ANOSIM (grouping joined onto a beta-diversity matrix)
+# ============================================================================
+
+statement ok
+CREATE TEMP TABLE ft4 AS SELECT * FROM (VALUES
+  ('s1','a',4),('s1','b',1), ('s2','a',3),('s2','b',2),
+  ('s3','a',1),('s3','b',8), ('s4','a',0),('s4','b',9)
+) AS t(sample_id, feature_id, count);
+
+statement ok
+CREATE TEMP TABLE bc4 AS SELECT * FROM skbio.diversity.beta_diversity((SELECT * FROM ft4));
+
+statement ok
+CREATE TEMP TABLE grp AS SELECT * FROM (VALUES ('s1','x'),('s2','x'),('s3','y'),('s4','y')) AS g(sample, grp);
+
+query IIII
+SELECT method, sample_size, number_of_groups, test_statistic > 0
+FROM skbio.stats.permanova((SELECT b.id_1, b.id_2, b.distance, g.grp FROM bc4 b JOIN grp g ON b.id_1 = g.sample));
+----
+PERMANOVA	4	2	true
+
+query III
+SELECT method, sample_size, number_of_groups
+FROM skbio.stats.anosim((SELECT b.id_1, b.id_2, b.distance, g.grp FROM bc4 b JOIN grp g ON b.id_1 = g.sample));
+----
+ANOSIM	4	2
+
+# ============================================================================
+# Mantel test (two distance columns)
+# ============================================================================
+
+# pearson correlation of distance_x=[.5,.7,.6] vs distance_y=[.4,.9,.5] is 0.9449
+query II
+SELECT n, round(correlation, 4) FROM skbio.stats.mantel((SELECT * FROM (VALUES
+  ('a','b',0.5,0.4), ('a','c',0.7,0.9), ('b','c',0.6,0.5)) AS d(id_1, id_2, distance_x, distance_y)));
+----
+3	0.9449
+
+# ============================================================================
+# Compositional transforms
+# ============================================================================
+
+statement ok
+CREATE TEMP TABLE comp AS SELECT * FROM (VALUES
+  ('s1','a',1),('s1','b',2),('s1','c',3),
+  ('s2','a',4),('s2','b',5),('s2','c',6)
+) AS t(sample_id, feature_id, value);
+
+# CLR keeps the long shape (2 samples x 3 features = 6 rows)
+query I
+SELECT count(*) FROM skbio.stats.clr((SELECT * FROM comp));
+----
+6
+
+# every sample's CLR values sum to zero
+query I
+SELECT abs(sum(clr)) < 1e-9 FROM skbio.stats.clr((SELECT * FROM comp));
+----
+true
+
+# ILR maps 3 parts -> 2 components per sample (2 samples x 2 = 4 rows)
+query I
+SELECT count(*) FROM skbio.stats.ilr((SELECT * FROM comp));
+----
+4
+
+statement ok
+DETACH skbio;

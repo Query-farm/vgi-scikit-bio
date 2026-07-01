@@ -1,0 +1,55 @@
+# name: test/sql/skbio_tree.test
+# description: Neighbour-joining tree construction and Newick inspection scalars
+# group: [vgi_scikit_bio]
+
+require-env VGI_SCIKIT_BIO_WORKER
+
+require vgi
+
+statement ok
+ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
+
+# ============================================================================
+# Neighbour joining from a distance matrix
+# ============================================================================
+
+statement ok
+CREATE TEMP TABLE dm AS SELECT * FROM (VALUES
+  ('a','b',5), ('a','c',9), ('a','d',9),
+  ('b','c',10), ('b','d',10), ('c','d',8)
+) AS d(id_1, id_2, distance);
+
+# one Newick row
+query I
+SELECT count(*) FROM skbio.tree.neighbor_joining((SELECT * FROM dm));
+----
+1
+
+# the tree has all four taxa as tips
+query I
+SELECT skbio.tree.tip_count(newick) FROM skbio.tree.neighbor_joining((SELECT * FROM dm));
+----
+4
+
+# ============================================================================
+# Newick inspection scalars
+# ============================================================================
+
+query I
+SELECT skbio.tree.tip_count('((a:2,b:3):3,d:4,c:4);');
+----
+4
+
+query I
+SELECT round(skbio.tree.total_branch_length('((a:2,b:3):3,d:4,c:4);'), 1);
+----
+16.0
+
+# NULL / unparseable input degrades to NULL
+query II
+SELECT skbio.tree.tip_count(NULL) IS NULL, skbio.tree.tip_count('not a tree') IS NULL;
+----
+true	true
+
+statement ok
+DETACH skbio;

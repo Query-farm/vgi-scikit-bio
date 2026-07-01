@@ -1,0 +1,112 @@
+# name: test/sql/skbio_sequence.test
+# description: Sequence scalar functions plus k-mer / residue composition table functions
+# group: [vgi_scikit_bio]
+
+require-env VGI_SCIKIT_BIO_WORKER
+
+require vgi
+
+statement ok
+ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
+
+# ============================================================================
+# Scalar transforms (also reachable unqualified via the default `sequence` schema)
+# ============================================================================
+
+query I
+SELECT round(skbio.sequence.gc_content('ATGCGGATTACAGG'), 4);
+----
+0.5
+
+query II
+SELECT round(skbio.gc_content('GGCC'), 4), round(skbio.gc_content('ATAT'), 4);
+----
+1.0	0.0
+
+query II
+SELECT skbio.sequence.reverse_complement('ATGC'), skbio.sequence.complement('ATGC');
+----
+GCAT	TACG
+
+query I
+SELECT skbio.sequence.transcribe('ATGC');
+----
+AUGC
+
+# ATG CGG ATT ACA GGT -> M R I T G (trailing partial codon ignored)
+query I
+SELECT skbio.sequence.translate('ATGCGGATTACAGGT');
+----
+MRITG
+
+# NULL / invalid input degrades to NULL, never an error
+query II
+SELECT skbio.sequence.gc_content('HELLO WORLD') IS NULL, skbio.sequence.reverse_complement('XYZ') IS NULL;
+----
+true	true
+
+# ============================================================================
+# Validation
+# ============================================================================
+
+query II
+SELECT skbio.sequence.is_valid_dna('ATGCN'), skbio.sequence.is_valid_dna('HELLO');
+----
+true	false
+
+query II
+SELECT skbio.sequence.is_valid_protein('MRIT'), skbio.sequence.is_valid_protein('ATGC1');
+----
+true	false
+
+# ============================================================================
+# Pairwise Hamming distance
+# ============================================================================
+
+query I
+SELECT round(skbio.sequence.hamming_distance('ACGTACGT', 'ACGAACGT'), 4);
+----
+0.125
+
+# length mismatch -> NULL
+query I
+SELECT skbio.sequence.hamming_distance('AAAA', 'AAA') IS NULL;
+----
+true
+
+# ============================================================================
+# k-mer frequencies (long format)
+# ============================================================================
+
+statement ok
+CREATE TEMP VIEW reads AS SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG'), (2, 'TTGCACGT')) AS r(id, seq);
+
+# 14-base read -> 12 distinct overlapping 3-mers; 8-base read -> 6
+query I
+SELECT count(*) FROM skbio.sequence.kmer_frequencies((SELECT * FROM reads), id := 'id', k := 3);
+----
+18
+
+# ATG occurs once in read 1
+query I
+SELECT count FROM skbio.sequence.kmer_frequencies((SELECT * FROM reads), id := 'id', k := 3)
+WHERE id = 1 AND kmer = 'ATG';
+----
+1
+
+# ============================================================================
+# residue frequencies (base/amino-acid composition, long format)
+# ============================================================================
+
+# read 1 = ATGCGGATTACAGG: 4 A, 2 C, 5 G, 3 T
+query II
+SELECT residue, count FROM skbio.sequence.residue_frequencies((SELECT * FROM reads), id := 'id')
+WHERE id = 1 ORDER BY residue;
+----
+A	4
+C	2
+G	5
+T	3
+
+statement ok
+DETACH skbio;

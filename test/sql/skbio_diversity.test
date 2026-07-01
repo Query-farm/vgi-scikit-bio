@@ -1,0 +1,102 @@
+# name: test/sql/skbio_diversity.test
+# description: Alpha-diversity aggregates and the beta-diversity distance matrix
+# group: [vgi_scikit_bio]
+
+require-env VGI_SCIKIT_BIO_WORKER
+
+require vgi
+
+statement ok
+ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
+
+# A long feature table: (sample_id, feature_id, count)
+statement ok
+CREATE TEMP TABLE ft AS SELECT * FROM (VALUES
+  (1, 'a', 4), (1, 'b', 2), (1, 'c', 1),
+  (2, 'a', 1), (2, 'b', 9)
+) AS t(sample_id, feature_id, count);
+
+# ============================================================================
+# Alpha diversity (aggregates, one value per sample under GROUP BY)
+# ============================================================================
+
+# Shannon (natural log) of sample 1's counts [4, 2, 1]
+query I
+SELECT round(skbio.diversity.shannon(count), 4) FROM ft WHERE sample_id = 1;
+----
+0.9557
+
+# Observed richness of sample 1 (3 non-zero features)
+query I
+SELECT skbio.diversity.observed_features(count)::BIGINT FROM ft WHERE sample_id = 1;
+----
+3
+
+# Simpson + dominance sum to 1
+query I
+SELECT round(skbio.diversity.simpson(count) + skbio.diversity.dominance(count), 6)
+FROM ft WHERE sample_id = 1;
+----
+1.0
+
+# Chao1 >= observed richness
+query I
+SELECT skbio.diversity.chao1(count) >= skbio.diversity.observed_features(count)
+FROM ft WHERE sample_id = 1;
+----
+true
+
+# Per-sample grouping yields one row each
+query II
+SELECT sample_id, round(skbio.diversity.shannon(count), 4)
+FROM ft GROUP BY sample_id ORDER BY sample_id;
+----
+1	0.9557
+2	0.3251
+
+# ============================================================================
+# Beta diversity (distance matrix, long output)
+# ============================================================================
+
+statement ok
+CREATE TEMP TABLE ft3 AS SELECT * FROM (VALUES
+  ('s1', 'a', 4), ('s1', 'b', 2),
+  ('s2', 'a', 1), ('s2', 'b', 9),
+  ('s3', 'a', 0), ('s3', 'b', 5)
+) AS t(sample_id, feature_id, count);
+
+# 3 samples -> a full 3x3 matrix (9 rows)
+query I
+SELECT count(*) FROM skbio.diversity.beta_diversity((SELECT * FROM ft3));
+----
+9
+
+# Diagonal is zero
+query I
+SELECT round(distance, 6) FROM skbio.diversity.beta_diversity((SELECT * FROM ft3))
+WHERE id_1 = 's1' AND id_2 = 's1';
+----
+0.0
+
+# Bray-Curtis(s1=[4,2], s2=[1,9]) = (|4-1|+|2-9|)/(4+2+1+9) = 0.625
+query I
+SELECT round(distance, 4) FROM skbio.diversity.beta_diversity((SELECT * FROM ft3))
+WHERE id_1 = 's1' AND id_2 = 's2';
+----
+0.625
+
+# Symmetric
+query I
+SELECT (SELECT distance FROM skbio.diversity.beta_diversity((SELECT * FROM ft3)) WHERE id_1='s1' AND id_2='s2')
+     = (SELECT distance FROM skbio.diversity.beta_diversity((SELECT * FROM ft3)) WHERE id_1='s2' AND id_2='s1');
+----
+true
+
+# Jaccard metric also works
+query I
+SELECT count(*) FROM skbio.diversity.beta_diversity((SELECT * FROM ft3), metric := 'jaccard');
+----
+9
+
+statement ok
+DETACH skbio;

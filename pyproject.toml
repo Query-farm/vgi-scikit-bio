@@ -1,0 +1,150 @@
+[project]
+name = "vgi-scikit-bio"
+# Single-sourced from vgi_scikit_bio/__init__.py (see [tool.hatch.version]) so the
+# published wheel, the version the worker advertises over VGI
+# (implementation_version / data_version), and the GitHub Release tag are always
+# the same number. Bump __version__ there before tagging a release.
+dynamic = ["version"]
+description = "A VGI (Vector Gateway Interface) worker exposing scikit-bio sequence analysis, diversity, ordination, and phylogenetics to DuckDB/SQL"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Rusty Conover", email = "rusty@query.farm" }]
+maintainers = [{ name = "Query Farm LLC", email = "hello@query.farm" }]
+keywords = ["vgi", "duckdb", "arrow", "scikit-bio", "bioinformatics", "sql"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Database :: Database Engines/Servers",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.13"
+dependencies = [
+    "vgi-python[http]>=0.8.7",
+    "scikit-bio>=0.6",
+    "numpy",
+    "pandas",
+    "scipy",
+]
+
+[project.optional-dependencies]
+# HTTP-serving extras. Sentry telemetry and OAuth auth only apply to the HTTP
+# server (under stdio, DuckDB owns the pipe), so they live here rather than in
+# the base deps: the published Docker image installs `.[serve]`, while a plain
+# `pip install vgi-scikit-bio` for an on-host stdio worker stays lean.
+serve = [
+    "vgi-python[http,oauth]>=0.8.7",
+    "vgi-rpc[sentry]>=0.21.0",
+    "authlib",
+]
+
+# Console scripts. `vgi-scikit-bio` runs the stdio transport (DuckDB spawns it);
+# `vgi-scikit-bio-http` runs the HTTP server. Once installed you can launch either
+# directly, e.g. `uvx vgi-scikit-bio`.
+[project.scripts]
+vgi-scikit-bio = "vgi_scikit_bio.worker:main"
+vgi-scikit-bio-http = "vgi_scikit_bio.worker:main_http"
+
+[project.urls]
+Homepage = "https://query.farm"
+Repository = "https://github.com/Query-farm/vgi-scikit-bio"
+Issues = "https://github.com/Query-farm/vgi-scikit-bio/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Read the package version from the `__version__` literal in the package itself,
+# so it is the single source of truth (see [project].dynamic above).
+[tool.hatch.version]
+path = "vgi_scikit_bio/__init__.py"
+
+# The installable worker is the `vgi_scikit_bio` package (entry points live in
+# vgi_scikit_bio.worker). The repo-root scikit_bio_worker.py / serve.py are
+# dev/container shims and intentionally not shipped in the wheel.
+[tool.hatch.build.targets.wheel]
+packages = ["vgi_scikit_bio"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "vgi_scikit_bio/",
+    "scikit_bio_worker.py",
+    "serve.py",
+    "conftest.py",
+    "tests/",
+    "test/",
+    "ci/",
+    "README.md",
+    "CLAUDE.md",
+    "LICENSE",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pyarrow",
+    "ruff",
+    "pydoclint",
+    "mypy",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "D"]
+ignore = [
+    "E741",  # ambiguous variable name (x, y are conventional)
+    "B008",  # function call in argument default (Arg(...) defaults are intentional)
+    "N801",  # class-name casing (TEST classmethod stand-ins are intentional)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests are not part of the documented public surface: skip docstring rules.
+"tests/*" = ["E402", "D"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pydoclint]
+# Docstring consistency gate (complements ruff's `D` rules, which only check
+# docstring *shape*, not whether documented args/attributes match the code).
+# Run via `uv run pydoclint vgi_scikit_bio/ scikit_bio_worker.py serve.py`; also
+# enforced inside the pytest suite by tests/test_docstrings.py.
+style = "google"
+# Types live in signatures, not docstrings (Google style).
+arg_type_hints_in_docstring = false
+check_return_types = false
+check_yield_types = false
+# Validate that an `Attributes:` section matches the actual dataclass fields.
+check_class_attributes = true
+# Raises are documented indirectly; don't gate on DOC5xx.
+skip_checking_raises = true
+# Document constructor params in the class docstring, not __init__.
+allow_init_docstring = true
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# The scientific stack ships no (or partial) type information; don't fail on
+# missing stubs for these third-party imports.
+module = ["skbio.*", "scipy.*", "sklearn.*", "pandas.*", "numpy.*"]
+ignore_missing_imports = true

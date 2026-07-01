@@ -1,0 +1,164 @@
+# Copyright 2026 Query Farm LLC - https://query.farm
+#
+# Unit tests + the sqllogictest extension suite (test/sql/*.test) run against
+# the scikit-bio worker through the real signed `vgi` DuckDB community extension
+# via a prebuilt standalone `haybarn-unittest`. Both jobs run on Linux, macOS,
+# and Windows. See ci/README.md for the design.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Resolve the latest published haybarn release once, so the whole matrix tests
+  # the same version (and we never hardcode/pin it).
+  resolve-haybarn:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.r.outputs.release }}
+    steps:
+      - id: r
+        run: |
+          REL=$(gh release view --repo Query-farm-haybarn/haybarn --json tagName --jq .tagName)
+          echo "release=$REL" >> "$GITHUB_OUTPUT"
+          echo "Latest haybarn release: $REL"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - name: Run unit tests
+        run: uv run --frozen --python 3.13 pytest tests/ -q
+
+  integration:
+    needs: resolve-haybarn
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  asset: haybarn_unittest-linux-amd64.zip }
+          - { os: macos-latest,   asset: haybarn_unittest-osx-arm64.zip }
+          - { os: windows-latest, asset: haybarn_unittest-windows-amd64.zip }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        # Git Bash on Windows; the integration runner is a bash script.
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Install the worker (from the lockfile)
+        run: uv sync --frozen --python 3.13
+
+      - name: Download haybarn-unittest
+        run: |
+          gh release download "$HAYBARN_RELEASE" \
+            --repo Query-farm-haybarn/haybarn \
+            --pattern '${{ matrix.asset }}' \
+            --output haybarn-unittest.zip --clobber
+          mkdir -p hb && unzip -o -q haybarn-unittest.zip -d hb
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HAYBARN_RELEASE: ${{ needs.resolve-haybarn.outputs.release }}
+
+      - name: Resolve runner + worker paths
+        run: |
+          # Absolute paths: run-integration.sh cd's into a staging dir before
+          # invoking the runner, so relative paths would not resolve.
+          #
+          # Transport per OS — both WARM (the worker is started ONCE and reused
+          # across every ATTACH, instead of cold-spawning a subprocess per attach
+          # that re-pays the scikit-bio/numpy import; minutes -> seconds):
+          #   Linux/macOS: the `launch:` AF_UNIX socket launcher.
+          #   Windows:     HTTP. The launcher needs AF_UNIX, which CPython on
+          #                Windows doesn't reliably provide, so we run one HTTP
+          #                server (started in the next step) and attach over it.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            UNITTEST="$PWD/$(find hb -name 'haybarn-unittest.exe' -type f | head -1)"
+            WORKER="http://localhost:8000"
+          else
+            UNITTEST="$PWD/$(find hb -name 'haybarn-unittest' -type f | head -1)"
+            chmod +x "$UNITTEST"
+            WORKER="launch:$PWD/.venv/bin/vgi-scikit-bio"
+          fi
+          echo "HAYBARN_UNITTEST=$UNITTEST" >> "$GITHUB_ENV"
+          echo "VGI_SCIKIT_BIO_WORKER=$WORKER" >> "$GITHUB_ENV"
+
+      - name: Run extension integration suite
+        run: |
+          # Windows: start one HTTP worker and reuse it for the whole suite (the
+          # warm transport for a platform without the AF_UNIX launcher). One cold
+          # scikit-bio import instead of one per ATTACH.
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            VGI_SIGNING_KEY=dev .venv/Scripts/python serve.py --port 8000 &
+            SRV=$!
+            trap 'kill "$SRV" 2>/dev/null || true' EXIT
+            for _ in $(seq 1 120); do
+              curl -fsS -o /dev/null http://localhost:8000/health 2>/dev/null && break
+              sleep 1
+            done
+          fi
+          ci/run-integration.sh
+
+  # Code style + types gate (ruff + mypy), matching the vgi-python tooling.
+  # Platform-independent, so Linux-only; the tools come from the `dev`
+  # dependency group. Docstring consistency (pydoclint) is enforced inside the
+  # unit suite via tests/test_docstrings.py.
+  lint:
+    name: ruff + mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - name: Ruff lint
+        run: uv run --frozen --python 3.13 ruff check .
+      - name: Ruff format check
+        run: uv run --frozen --python 3.13 ruff format --check .
+      - name: Type check (mypy)
+        run: uv run --frozen --python 3.13 mypy vgi_scikit_bio/
+
+  # Lint the worker's catalog metadata (descriptions, tags, examples, column
+  # docs) with vgi-lint-check. Metadata quality is platform-independent, so
+  # Linux-only. Two passes:
+  #   1. static (--no-execute), fail-on: warning — strict metadata gate.
+  #   2. execute, fail-on: error — runs every example's SQL live; a binding
+  #      failure is an error and fails CI.
+  lint-metadata:
+    name: vgi-lint-check (metadata quality)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - name: Install the worker (from the lockfile)
+        run: uv sync --frozen --python 3.13
+      - name: Lint worker metadata (static)
+        uses: Query-farm/vgi-lint-check@v1
+        with:
+          location: .venv/bin/vgi-scikit-bio
+          execute: false
+          fail-on: warning
+      - name: Lint worker examples (execute)
+        uses: Query-farm/vgi-lint-check@v1
+        with:
+          location: .venv/bin/vgi-scikit-bio
+          execute: true
+          fail-on: error

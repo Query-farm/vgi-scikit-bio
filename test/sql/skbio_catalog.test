@@ -1,0 +1,39 @@
+# name: test/sql/skbio_catalog.test
+# description: Catalog discovery — the skbio catalog, its schemas, and version metadata
+# group: [vgi_scikit_bio]
+
+require-env VGI_SCIKIT_BIO_WORKER
+
+require vgi
+
+# The worker advertises exactly one catalog named `skbio`
+query I
+SELECT catalog FROM vgi_catalogs('${VGI_SCIKIT_BIO_WORKER}');
+----
+skbio
+
+statement ok
+ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
+
+# Four schemas: sequence (default), diversity, stats, tree
+query I
+SELECT count(DISTINCT schema_name) FROM duckdb_functions() WHERE database_name = 'skbio';
+----
+4
+
+query I
+SELECT DISTINCT schema_name FROM duckdb_functions() WHERE database_name = 'skbio' ORDER BY schema_name;
+----
+diversity
+sequence
+stats
+tree
+
+# The default schema resolves an unqualified sequence function
+query I
+SELECT round(skbio.gc_content('GGCC'), 1);
+----
+1.0
+
+statement ok
+DETACH skbio;
