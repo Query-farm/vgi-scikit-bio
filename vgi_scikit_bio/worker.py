@@ -30,6 +30,7 @@ from vgi_scikit_bio.distance_stats import DISTANCE_STATS_FUNCTIONS
 from vgi_scikit_bio.diversity import DIVERSITY_FUNCTIONS
 from vgi_scikit_bio.kmers import KMER_FUNCTIONS
 from vgi_scikit_bio.ordination import ORDINATION_FUNCTIONS
+from vgi_scikit_bio.phylo import PHYLO_FUNCTIONS
 from vgi_scikit_bio.sequence import SEQUENCE_FUNCTIONS
 from vgi_scikit_bio.tree import TREE_FUNCTIONS
 
@@ -56,7 +57,7 @@ _DEFAULT_SCHEMA = "sequence"
 _SCHEMA_FUNCTIONS: dict[str, list[type]] = {
     "sequence": [*SEQUENCE_FUNCTIONS, *KMER_FUNCTIONS],
     "alignment": [*ALIGNMENT_FUNCTIONS],
-    "diversity": [*DIVERSITY_FUNCTIONS],
+    "diversity": [*DIVERSITY_FUNCTIONS, *PHYLO_FUNCTIONS],
     "stats": [*ORDINATION_FUNCTIONS, *DISTANCE_STATS_FUNCTIONS, *COMPOSITION_FUNCTIONS],
     "tree": [*TREE_FUNCTIONS],
 }
@@ -257,6 +258,8 @@ _SCHEMA_CATEGORIES: dict[str, list[dict[str, str]]] = {
     "diversity": [
         {"name": "alpha", "description": "Per-sample diversity of one community, as aggregates."},
         {"name": "beta", "description": "Between-sample community distances, as a matrix."},
+        {"name": "phylogenetic", "description": "Tree-aware diversity (Faith's PD, UniFrac)."},
+        {"name": "preprocessing", "description": "Prepare a feature table (rarefaction)."},
     ],
     "stats": [
         {"name": "ordination", "description": "Embed samples in a low-dimensional space from a distance matrix."},

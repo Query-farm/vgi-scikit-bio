@@ -120,5 +120,37 @@ SELECT count(*) FROM skbio.diversity.beta_diversity((SELECT * FROM ft3), metric 
 ----
 9
 
+# ============================================================================
+# Phylogenetic diversity (needs a tree) and rarefaction
+# ============================================================================
+
+statement ok
+CREATE TEMP TABLE phy AS SELECT * FROM (VALUES
+  ('s1','f1',1),('s1','f2',1),('s2','f3',1),('s2','f4',1),('s3','f1',1),('s3','f3',1)
+) AS t(sample_id, feature_id, count);
+
+# Faith's PD of sample s1 (features f1,f2): 0.1 + 0.2 + 0.3 = 0.6
+query I
+SELECT round(faith_pd, 4) FROM skbio.diversity.faith_pd((SELECT * FROM phy),
+  tree := '((f1:0.1,f2:0.2):0.3,(f3:0.15,f4:0.25):0.35);') WHERE sample_id = 's1';
+----
+0.6
+
+# Unweighted UniFrac: s1 (f1,f2) and s2 (f3,f4) share no branches -> distance 1.0
+query I
+SELECT round(distance, 4) FROM skbio.diversity.unifrac((SELECT * FROM phy),
+  tree := '((f1:0.1,f2:0.2):0.3,(f3:0.15,f4:0.25):0.35);') WHERE id_1 = 's1' AND id_2 = 's2';
+----
+1.0
+
+# Rarefaction: each sample is subsampled to the requested depth
+query I
+SELECT DISTINCT total FROM (
+  SELECT sample_id, sum(count) AS total FROM skbio.diversity.subsample_counts((SELECT * FROM
+    (VALUES ('s1','a',4),('s1','b',2),('s1','c',6),('s2','a',10),('s2','b',5),('s2','c',5))
+    AS t(sample_id, feature_id, count)), depth := 8) GROUP BY sample_id);
+----
+8
+
 statement ok
 DETACH skbio;
