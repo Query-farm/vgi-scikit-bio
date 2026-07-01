@@ -12,16 +12,21 @@ stdio (local) or HTTP (container/Fly.io). Modeled on `~/Development/vgi-scikit-l
 
 ## Layout
 
+The worker exposes ~90 functions across 5 schemas (`sequence`, `alignment`,
+`diversity`, `stats`, `tree`).
+
 ```
 vgi_scikit_bio/
-  worker.py          builds the `skbio` Catalog + ScikitBioWorker; main()/main_http() entry points
-  sequence.py        DNA/RNA/protein scalar functions (gc_content, reverse_complement, translate, ...)
-  kmers.py           kmer_frequencies / residue_frequencies (buffering, long-format composition)
-  diversity.py       alpha-diversity aggregates + beta_diversity distance matrix (buffering)
-  ordination.py      pcoa — principal coordinates over a long distance matrix (buffering)
+  worker.py          builds the `skbio` Catalog + ScikitBioWorker; schema/category/agent metadata
+  sequence.py        DNA/RNA/protein scalar functions (gc_content, translate, degap, mismatch_count, ...)
+  kmers.py           kmer_frequencies / residue_frequencies / translate_six_frames (buffering, long)
+  alignment.py       align_score_* scalars + pairwise_align_* table functions (global/local)
+  diversity.py       spec-generated alpha aggregates (scalar/order/list) + beta_diversity matrix
+  phylo.py           faith_pd / unifrac / subsample_counts — tree-aware diversity + rarefaction
+  ordination.py      pcoa (distance matrix) + pca / ca (feature table) — buffering
   distance_stats.py  permanova / anosim / mantel — single-row distance-matrix tests (buffering)
-  composition.py     clr / ilr — compositional log-ratio transforms (buffering)
-  tree.py            neighbor_joining (buffering) + tip_count / total_branch_length (scalars)
+  composition.py     clr/ilr/alr/closure/... transforms + inverses, pairwise_vlr, ancom, dirmult_ttest
+  tree.py            builders (nj/upgma/gme/bme, generated) + inspection & comparison scalars
   distance_utils.py  reconstruct a skbio DistanceMatrix from a long (id_1, id_2, distance) table
   buffering.py       shared SinkBuffer sink/combine/serialize helpers for whole-input functions
   schema_utils.py    pa.Field comment helper, name sanitisation, NoArgs
@@ -33,7 +38,18 @@ test/sql/*.test      DuckDB sqllogictest — the authoritative integration tests
 
 To add functions: implement in the relevant `vgi_scikit_bio/*.py`, export a
 `*_FUNCTIONS` list, and splice it into `_SCHEMA_FUNCTIONS` in
-`vgi_scikit_bio/worker.py`.
+`vgi_scikit_bio/worker.py`. Each function should self-declare a `vgi.category`
+(one of its schema's categories in `_SCHEMA_CATEGORIES`) in its `Meta.tags`, or
+be added to `_FUNCTION_CATEGORY` — the metadata linter requires every object to
+carry one.
+
+**Generated function families.** Alpha metrics (`diversity._make_alpha`), tree
+builders (`tree._make_builder`), same-shape composition transforms
+(`composition._make_same_shape`), and composition inverses are generated with
+`type(name, (Base,), {...})` from spec tables — the base is a concrete
+(non-subscripted-generic) class so plain `type()` works. **`FunctionArguments`
+is read at class creation**, so a function's args dataclass must be defined
+*before* the class and set in the class body (not patched on afterwards).
 
 **Entry points / packaging.** Console scripts (`vgi-scikit-bio`,
 `vgi-scikit-bio-http`) point at `vgi_scikit_bio.worker:main` / `:main_http` —

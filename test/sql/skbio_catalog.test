@@ -15,15 +15,16 @@ skbio
 statement ok
 ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
 
-# Four schemas: sequence (default), diversity, stats, tree
+# Five schemas: sequence (default), alignment, diversity, stats, tree
 query I
 SELECT count(DISTINCT schema_name) FROM duckdb_functions() WHERE database_name = 'skbio';
 ----
-4
+5
 
 query I
 SELECT DISTINCT schema_name FROM duckdb_functions() WHERE database_name = 'skbio' ORDER BY schema_name;
 ----
+alignment
 diversity
 sequence
 stats

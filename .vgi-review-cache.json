@@ -574,5 +574,1237 @@
       "Add one worked example of the full chain (beta_diversity \u2192 neighbor_joining) since the doc already asserts the input comes from beta-diversity."
     ],
     "summary": "Accurate and appropriately scoped; would benefit from the scalar-vs-table call distinction and branch-length units."
+  },
+  "5011e57c96eee9c8": {
+    "object": "skbio",
+    "kind": "catalog",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Split the doc_llm mega-sentence into per-schema clauses; as one ~120-word run-on it is hard for an agent to scan and match a task to a schema.",
+      "Name the actual schema namespaces an agent must qualify against (e.g. `skbio.alignment`, `skbio.diversity`, `skbio.stats`, `skbio.tree`); the doc_md's five prose groupings ('Sequence' + four others) don't obviously map to the schema list, and CLAUDE.md still says 'four schemas'.",
+      "State the two core data-shape conventions up front (feature tables are long `(sample,feature,count)`; distance matrices are long `(id_1,id_2,distance)`), since nearly every table function depends on them."
+    ],
+    "summary": "Accurate and comprehensive catalog blurb, but the doc_llm is a single overloaded sentence and never names the schemas an agent routes to."
+  },
+  "eb86a818c09183c3": {
+    "object": "skbio.alignment",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "List the four member functions by name (pairwise_align_nucleotide/protein, align_score_nucleotide/protein) so an agent can pick score-only vs full-alignment without introspecting each object.",
+      "State that scoring parameters (substitution matrix, match/mismatch, gap penalties) are fixed defaults and not exposed as arguments \u2014 an agent tuning alignment sensitivity will otherwise hunt for knobs that don't exist.",
+      "Define 'aligned length' (length of the gapped alignment, not of either input) since the schema promises 'aligned strings and score' but the functions also emit a length column."
+    ],
+    "summary": "Clear and accurate schema summary that omits function names and the fixed-scoring caveat."
+  },
+  "91613a4216843cce": {
+    "object": "skbio.diversity",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Name the exact output columns of the beta-diversity matrix (`id_1, id_2, distance`, full square) so the reader can see it feeds directly into skbio.stats and skbio.tree without a reshape.",
+      "Note that alpha metrics operate on integer abundances (counts rounded in finalize) \u2014 a caller passing relative frequencies or normalized values should know they'll be truncated.",
+      "Specify rarefaction's depth/seed behavior (samples below depth dropped? deterministic seed?) since 'rarefy each sample to a common depth' hides the two decisions a user most needs to control."
+    ],
+    "summary": "Strong, well-scoped diversity overview; light on output-column specifics and the integer-count and rarefaction caveats."
+  },
+  "28d6f34d4457cb4b": {
+    "object": "skbio.stats",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Make the input-shape split explicit per method: PCoA/PERMANOVA/ANOSIM/Mantel consume the long distance matrix, while PCA/CA and the log-ratio/ANCOM methods consume the long feature table \u2014 an agent otherwise can't tell which functions need a beta_diversity result vs a raw table.",
+      "For the log-ratio transforms, flag that ILR/ALR need a basis/reference (ALR a denominator feature) and that CLR/ILR require nonzero (pseudocount-adjusted) compositions \u2014 the current 'into real space' prose omits the zero-handling gotcha.",
+      "Name the differential-abundance outputs and grouping input (ANCOM's per-feature W statistic; how the group label is supplied) so a caller knows what a result row contains."
+    ],
+    "summary": "Accurate multivariate summary, but per-method input requirements and compositional zero/reference caveats are underspecified for tool selection."
+  },
+  "2bb7bf814498d91e": {
+    "object": "skbio.alignment.pairwise_align_protein",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 4,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Add the `length` output to the one-line `description` and `doc_md` header (both say only 'aligned strings and score' while Returns is `(id?, aligned_1, aligned_2, score, length)`).",
+      "Document the output column names/types explicitly (aligned_1/aligned_2 VARCHAR, score DOUBLE, length INTEGER) and what `length` measures (gapped-alignment length), since table functions fix their schema at bind and callers need the exact names.",
+      "Clarify default column detection when `id :=` is omitted: state whether the first column is still treated as id, and note the top-level `comment` is empty so all guidance lives only in doc_llm/doc_md."
+    ],
+    "summary": "Solid usage doc whose short description omits the emitted `length` column and the exact output schema."
+  },
+  "28efece2182324c9": {
+    "object": "skbio.alignment.pairwise_align_nucleotide",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Surface the `length` output column in the `description` and `doc_md` header, which currently advertise only 'aligned strings and score' despite the `(id?, aligned_1, aligned_2, score, length)` return shape.",
+      "Spell out the output column types and define `length` (length of the gapped alignment) so a downstream query can bind columns without trial and error.",
+      "Note that nucleotide scoring (match/mismatch, affine gaps) is fixed and not configurable, and that inputs are upper-cased/validated as DNA \u2014 a caller aligning RNA or IUPAC-ambiguous reads should know they may collapse to NULL."
+    ],
+    "summary": "Clear alignment doc that names N-W/S-W modes but under-reports the `length` output and fixed scoring."
+  },
+  "c7497dc1b1330624": {
+    "object": "skbio.alignment.align_score_nucleotide",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Give the concrete default scoring values (match, mismatch, gap-open/extend) instead of 'default nucleotide scoring' so an agent can interpret the DOUBLE magnitude rather than treating it as opaque.",
+      "Warn that the raw score is unnormalized and length-dependent, so it is not comparable across pairs of differing length \u2014 an agent ranking similarity should normalize or use a percent-identity approach.",
+      "State that the score is symmetric in its two arguments, so callers needn't compute both orderings."
+    ],
+    "summary": "Accurate, clear scalar-score doc; would benefit from concrete scoring values and a non-normalization caveat."
+  },
+  "20d793b986903f11": {
+    "object": "skbio.alignment.align_score_protein",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Name the actual default substitution matrix (e.g. BLOSUM50/62) and gap penalties rather than 'the default substitution matrix', since matrix choice materially changes the score an agent will reason about.",
+      "Note the score is unnormalized and length-dependent, hence not directly comparable across protein pairs of different lengths \u2014 pair with alignment length or percent identity for ranking.",
+      "Add a worked expected value to the example (like a returned score) so a caller can sanity-check integration, and mention the score is symmetric."
+    ],
+    "summary": "Accurate and clear protein-score doc; vague on which substitution matrix/penalties define the returned DOUBLE."
+  },
+  "437c7fee53640753": {
+    "object": "skbio.diversity.unifrac",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State the distance range (0\u20131) and whether the emitted long matrix includes self-pairs (id_1 == id_2, distance 0) and both orderings, since downstream pcoa/permanova via distance_utils expects every sample as id_1.",
+      "Note that weighted vs unweighted UniFrac are not comparable on the same scale, and that unweighted ignores the count column entirely (presence/absence).",
+      "Add a caveat about feature ids not present as tree tips (error vs silently dropped), mirroring faith_pd's tree-membership note."
+    ],
+    "summary": "Accurate and well-targeted; missing distance range and self-pair/orientation details of the long output."
+  },
+  "d8c56f9cadd697d2": {
+    "object": "skbio.diversity.subsample_counts",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Clarify behavior when `seed :=` is omitted (nondeterministic each run) so agents know reproducibility requires an explicit seed.",
+      "Specify the type/units of `depth` (integer total counts per sample) and what happens if a sample's total exactly equals depth.",
+      "Mention that features dropping to zero after subsampling are omitted from output rows, and that the output count column is integer."
+    ],
+    "summary": "Strong rarefaction docs; would benefit from seed-default and edge-case (equal-depth, zeroed features) notes."
+  },
+  "4d226a7c7e9b4a17": {
+    "object": "skbio.diversity.faith_pd",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State explicitly that faith_pd uses presence/absence only \u2014 the count column value is ignored beyond nonzero \u2014 so agents don't assume abundance-weighting.",
+      "Give the units of the result (sum of branch lengths, in the tree's branch-length units) and note it is unbounded above.",
+      "Clarify whether samples with no matching tips return 0 or NULL, complementing the 'missing feature raises an error' note."
+    ],
+    "summary": "Accurate PD description; should note presence/absence semantics and result units."
+  },
+  "eec7ef6ba8bc365d": {
+    "object": "skbio.diversity.simpson_e",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Tighten the definition: Simpson's evenness is (1/D)/S where D is dominance and S is richness; 'inverse-Simpson divided by richness' is right but 'inverse-Simpson diversity' is ambiguous \u2014 name it.",
+      "The boilerplate 'values are rounded to integers' is misleading for evenness \u2014 clarify it means the input counts are rounded to integer abundances, not the DOUBLE result.",
+      "Note interpretation: near 1 = perfectly even, near 0 = dominated, and behavior for a single feature (S=1)."
+    ],
+    "summary": "Clear but the evenness formula wording and the shared 'rounded to integers' caveat need disambiguation."
+  },
+  "f1f46b09fe0debb8": {
+    "object": "skbio.diversity.singles",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Emphasize that this counts singletons after integer rounding of counts, so fractional/relative-abundance inputs will be rounded first (can change the singleton count materially).",
+      "Clarify the returned type is a whole number represented as DOUBLE, and that it is a raw richness component (input to chao1), not a normalized diversity index.",
+      "Note the [0, S] range and that it is scale-sensitive (unlike evenness), so it should not be compared across samples of different sequencing depth without rarefaction."
+    ],
+    "summary": "Accurate singleton-count docs; rounding sensitivity and depth-comparability caveats would help agents."
+  },
+  "a64da28f2143fc72": {
+    "object": "skbio.diversity.simpson_d",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Refine wording: D is the probability two randomly drawn individuals belong to the SAME feature ('share a feature' is fine but easily read as 'differ'); explicitly note it is \u03a3 p_i\u00b2, in [0, 1], higher = more dominated.",
+      "Disambiguate from `simpson` (which is 1 \u2212 D) so an agent picking between them knows they are complementary.",
+      "Clarify the 'rounded to integers' note applies to input counts, not the DOUBLE result."
+    ],
+    "summary": "Mostly accurate dominance index; sharpen the same/different wording and contrast with simpson."
+  },
+  "909e559d12b09baf": {
+    "object": "skbio.diversity.simpson",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Cross-reference that this equals 1 \u2212 simpson_d (Gini\u2013Simpson index) so agents don't compute both redundantly.",
+      "Clarify that 'rounded to integers' refers to input abundances, not the [0,1] DOUBLE output.",
+      "Add interpretation anchors: 0 = single dominant feature, approaching 1 = many equally abundant features."
+    ],
+    "summary": "Accurate Gini\u2013Simpson description; add explicit relationship to simpson_d and interpretation anchors."
+  },
+  "2119847e2201a8ae": {
+    "object": "skbio.diversity.shannon",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 3,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Verify the log base: scikit-bio's shannon defaults to base 2 (bits), not natural log \u2014 the doc's 'natural log' claim is likely inaccurate and should state the actual base used (and whether it is configurable here).",
+      "Give the value range/units (0 to log(S); units depend on base) so agents can interpret magnitudes.",
+      "Clarify that 'rounded to integers' applies to input counts, and note that raw Shannon is depth-sensitive so cross-sample comparison benefits from rarefaction."
+    ],
+    "summary": "Clear but the stated 'natural log' base likely contradicts scikit-bio's base-2 default \u2014 an accuracy risk."
+  },
+  "e387023ec8d51378": {
+    "object": "skbio.diversity.osd",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Define 'singletons'/'doubletons' concretely as the number of features whose (rounded) count equals 1 and 2 respectively \u2014 an agent can't map [observed, singles, doubles] to inputs otherwise.",
+      "The example groups by sample but never shows the array shape in its output; add a comment or expected result like [3,1,1] for sample 1 so the DOUBLE[] return is unambiguous.",
+      "State the intended use (feeding richness estimators like chao1) and that it is the only metric here returning an array, not a scalar, so callers unnest or index it."
+    ],
+    "summary": "Accurate array-return doc but under-defines singleton/doubleton semantics and never illustrates the array output."
+  },
+  "a05984cc04a814c9": {
+    "object": "skbio.diversity.tsallis",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 3,
+      "clarity": 4,
+      "completeness": 2,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "The `q` parameter exists and is used in the example (q := 1) but is undocumented in both doc_llm and doc_md \u2014 describe it, give its default, and note it is a scalar constant not a column.",
+      "The prose says 'entropy of order q' yet the count-rounding caveat contradicts an entropy computed on proportions; clarify whether q must be >= 0 and what q=0/1/2 yield (the parameter description hints richness/Shannon/Simpson but the doc body omits it).",
+      "Explain how `q` is passed (named arg only? positional after count?) since the example uses `q :=` \u2014 agents need the calling convention."
+    ],
+    "summary": "Documents the metric but omits its required `q` parameter entirely, the key accuracy/completeness gap."
+  },
+  "c5b0e7f7ef3e5efb": {
+    "object": "skbio.diversity.chao1",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Note edge behavior: when there are no doubletons the bias-corrected form changes/can inflate \u2014 agents should know results are unstable for tiny samples.",
+      "Clarify the DOUBLE input + 'rounded to integers' interaction: chao1 depends on integer singleton/doubleton counts, so fractional abundances round first and may collapse to 0.",
+      "State the return range (>= observed richness) so an agent can sanity-check outputs."
+    ],
+    "summary": "Correct and clear; missing small-sample caveats and the meaning of the rounding step for singleton-driven math."
+  },
+  "b543203df327f560": {
+    "object": "skbio.diversity.heip_evenness",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Document the single-feature edge case: Heip's evenness divides by (richness - 1), so one observed feature yields division-by-zero/NaN \u2014 agents need this before grouping sparse samples.",
+      "Clarify that '[0,1]' is the nominal range but degenerate inputs can fall outside/return NULL.",
+      "Contrast briefly with the richness metrics (why pick evenness vs observed_features) to aid selection."
+    ],
+    "summary": "Accurate range-bounded description but omits the richness=1 divide-by-zero caveat."
+  },
+  "8b497ca396d34eb6": {
+    "object": "skbio.diversity.observed_features",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Flag that 'rounded to integers' happens before the non-zero test, so an abundance of 0.4 rounds to 0 and is NOT counted \u2014 surprising given DOUBLE input.",
+      "Note the result is always a whole number even though the return type is DOUBLE.",
+      "Mention it equals the `observed` element of `osd`, helping agents avoid redundant calls."
+    ],
+    "summary": "Clear richness definition, but the round-then-count interaction can silently drop small fractional abundances."
+  },
+  "22a5b15b85153729": {
+    "object": "skbio.diversity.menhinick",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Give the exact formula S/sqrt(N) with S=richness, N=total count so agents can verify and compare with margalef.",
+      "Note the total-count sensitivity: unlike observed_features it depends on sampling depth, so cross-sample comparison assumes comparable depth (or prior rarefaction).",
+      "State behavior when total count is 0 (empty/all-NULL group)."
+    ],
+    "summary": "Accurate one-line index description; lacks the depth-dependence caveat that governs correct use."
+  },
+  "de487ad3203a92b5": {
+    "object": "skbio.diversity.inv_simpson",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the range (>= 1, up to richness) so agents can interpret and validate the 'effective number' framing.",
+      "Note it is depth-robust relative to raw richness metrics \u2014 useful for selecting it over observed_features/menhinick.",
+      "Clarify empty/single-feature behavior (returns 1 for a single feature)."
+    ],
+    "summary": "Strong, accurate 'effective number' framing; missing value range and selection guidance."
+  },
+  "570d587d0449a51b": {
+    "object": "skbio.diversity.margalef",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "The formula is (S-1)/ln(N), not 'richness scaled by natural log'; correct the prose to include the S-1 numerator and the division by ln(N).",
+      "Document the N=1 (or single-feature) edge case where ln(N)=0 gives division-by-zero/NaN.",
+      "Note total-count dependence so agents know it, like menhinick, assumes comparable sampling depth across groups."
+    ],
+    "summary": "Slightly imprecise formula wording (drops the S-1 / division) and omits the ln(N)=0 edge case."
+  },
+  "2fdbb39a26ca83b1": {
+    "object": "skbio.diversity.kempton_taylor_q",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Clarify that 'values are rounded to integers' refers to the input abundances (per the integer-count requirement), not the returned DOUBLE \u2014 the current placement next to 'Returns a single DOUBLE' reads as output rounding.",
+      "Note the degenerate-input behavior: Q is undefined/NaN when a sample has too few distinct features to span the interquartile range, so agents know when a NULL/NaN can appear.",
+      "State the expected magnitude/units (slope in units of features per log-abundance) and that higher Q means greater diversity, so an agent can interpret the number."
+    ],
+    "summary": "Accurate and clear, but omits units/interpretation and edge-case (too-few-features) behavior."
+  },
+  "53beb72f61056b7c": {
+    "object": "skbio.diversity.hill",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 3,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "doc_md omits the `q` parameter entirely from its bullet list even though the example passes `q := 1` \u2014 document q as a named argument, its type, and whether it has a default.",
+      "State whether q is required or optional and its default value; the doc_llm describes q semantically but never says how to supply it.",
+      "Clarify that the result is an effective feature count (same units as richness), so q=0 returns the observed feature count for the example rows."
+    ],
+    "summary": "Good metric explanation, but the required `q` argument is under-documented and missing from doc_md."
+  },
+  "f6f3411bd768869a": {
+    "object": "skbio.diversity.gini_index",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the interpretation direction (0 = perfectly even abundances, 1 = maximal inequality/dominance) so an agent can act on the value.",
+      "Clarify that 'rounded to integers' applies to input counts, not the [0,1] output.",
+      "Note behavior for a single-feature sample (Gini = 0), a common edge case."
+    ],
+    "summary": "Accurate, well-bounded [0,1] description; add directionality and single-feature edge case."
+  },
+  "a6f14a4c5fd0bdc0": {
+    "object": "skbio.diversity.goods_coverage",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Note that Good's coverage depends on singletons (features with count 1) and returns 1.0 when none exist \u2014 critical for interpreting the integer-rounding step, since rounding fractional values can erase or create singletons.",
+      "State the output range [0,1] and its meaning (proportion observed vs. undiscovered = 1 \u2212 coverage).",
+      "Clarify 'rounded to integers' refers to input abundances, not the output."
+    ],
+    "summary": "Accurate but silent on singleton dependence and how integer-rounding affects the estimate."
+  },
+  "99979dac7da59a8b": {
+    "object": "skbio.diversity.robbins",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Note the estimator's dependence on singleton count and total individuals (Robbins = singletons/(N+1)), so agents understand why integer-rounding of inputs matters.",
+      "State the output range [0,1] and that it estimates unseen-feature probability (complement of coverage).",
+      "Clarify that 'rounded to integers' applies to the input `count`, not the DOUBLE result."
+    ],
+    "summary": "Accurate definition; lacks range, singleton dependence, and rounding-scope clarity."
+  },
+  "0b72d262600560b5": {
+    "object": "skbio.diversity.mcintosh_d",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Add interpretation direction (higher = more dominance/less even) and the [0,1] range so the number is actionable.",
+      "Note the single-feature edge case (undefined/NaN when total individuals = 1) so agents anticipate NULLs.",
+      "Clarify that integer-rounding applies to input abundances feeding the Euclidean norm, not the output."
+    ],
+    "summary": "Accurate norm-based description; missing range, direction, and edge-case notes."
+  },
+  "1bc7dc39e9eb55b9": {
+    "object": "skbio.diversity.esty_ci",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 4,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "The example returns a `DOUBLE[]` but never shows how to consume it \u2014 add `[1]`/`[2]` (or UNNEST) usage so an agent knows how to read lower/upper.",
+      "State the confidence level (e.g. ~95%) the interval represents; 'confidence interval' alone is ambiguous.",
+      "Note this bounds coverage in [0,1] and depends on singletons, so agents understand when the interval degenerates."
+    ],
+    "summary": "Array return is well-documented, but example lacks unpacking and the CI's confidence level is unstated."
+  },
+  "3677f2fffbbab6cd": {
+    "object": "skbio.diversity.strong",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the output range and direction (DW in [0,1], higher = more dominance) so the value is interpretable.",
+      "Note that the index needs multiple features to be meaningful and its behavior for a single-feature sample.",
+      "Clarify that 'rounded to integers' refers to the input abundances driving the cumulative curve, not the output."
+    ],
+    "summary": "Accurate DW description; add range, directionality, and rounding-scope clarity."
+  },
+  "d194cb5005bd3105": {
+    "object": "skbio.diversity.mcintosh_e",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Flag the sharp edge that counts are rounded to integers before computing \u2014 if an agent passes relative/proportional abundances (0\u20131), every value rounds to 0 and the result is meaningless; state that raw integer counts are required.",
+      "Add the expected result to the example (e.g. the scalar it returns for sample 1 vs 2) so an agent can validate its call.",
+      "Note the degenerate cases (single feature or empty sample) and what is returned then (NULL/NaN)."
+    ],
+    "summary": "Accurate and clear; missing the integer-rounding pitfall for relative-abundance inputs and edge-case behavior."
+  },
+  "0332a0cea075d080": {
+    "object": "skbio.diversity.enspie",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the output range/units: enspie is an effective number of species in [1, richness], not a bounded [0,1] index \u2014 helps an agent interpret the magnitude.",
+      "Add the relationship enspie = 1/dominance (inverse Simpson) explicitly so an agent can choose between the two sibling metrics.",
+      "Surface the integer-rounding caveat: passing fractional/relative abundances silently collapses to zeros."
+    ],
+    "summary": "Solid; would benefit from output range/units and the explicit inverse-Simpson relationship."
+  },
+  "6707c07959bc450a": {
+    "object": "skbio.diversity.dominance",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the range (1/richness to 1) and that dominance = 1/enspie, so an agent can pick the right sibling metric.",
+      "Add the rounding caveat \u2014 relative-abundance inputs round to integers and break the computation.",
+      "Include the expected numeric result in the example for validation."
+    ],
+    "summary": "Accurate intuitive gloss; add range, sibling-metric link, and the rounding caveat."
+  },
+  "e0b7821b2e1fcb1c": {
+    "object": "skbio.diversity.renyi",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Document whether `q` has a default and is optional; the example passes `q := 1` but neither doc states the default, which an agent needs to call it without guessing.",
+      "Note that q=1 is a limiting case (Renyi entropy is undefined at exactly q=1 and equals Shannon entropy in the limit) \u2014 clarify it is special-cased, since the example uses precisely q=1.",
+      "State the output units/log base (Renyi entropy value, not a [0,1] index) and its range, so results are interpretable."
+    ],
+    "summary": "Prose is fine but the `q` default/requiredness, q=1 limit, and output units are underspecified."
+  },
+  "45b8053e1522dc5b": {
+    "object": "skbio.diversity.berger_parker_d",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the range (1/richness to 1) so an agent can interpret the value.",
+      "Note relationship to `dominance`/`enspie` (all measure dominance differently) to aid metric selection.",
+      "Add the integer-rounding caveat for relative-abundance inputs."
+    ],
+    "summary": "Accurate and clear; add range, sibling-metric contrast, and rounding caveat."
+  },
+  "d38e9f729907934b": {
+    "object": "skbio.diversity.pielou_evenness",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Note that evenness is undefined (NaN, since ln(richness)=0) for a single-feature sample, and state what the aggregate returns there.",
+      "Add the integer-rounding caveat: relative abundances collapse to zeros before computation.",
+      "State that it is unitless and independent of total count (unlike richness estimators), guiding when to prefer it."
+    ],
+    "summary": "Clear and accurate; missing the single-feature NaN edge case and the rounding caveat."
+  },
+  "54d10a549039f107": {
+    "object": "skbio.diversity.chao1_ci",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the confidence level (Chao1 CI is a 95% interval) \u2014 an agent needs this to report it correctly.",
+      "Note behavior when there are no singletons/doubletons (the CI degenerates or bounds collapse to the observed richness) since Chao1 depends on rare-feature counts.",
+      "Show how to unpack the DOUBLE[] in SQL (e.g. `[1]` lower, `[2]` upper) in the example, since this is the one metric returning an array."
+    ],
+    "summary": "Correctly documents the array return; add confidence level, degenerate-input behavior, and array-indexing guidance."
+  },
+  "26b4bb3fad25356b": {
+    "object": "skbio.diversity.ace",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Document the rare/abundant threshold ACE uses (scikit-bio default 10) and whether it is exposed as a parameter \u2014 it materially changes the estimate.",
+      "Warn that ACE can be undefined/NaN or unstable when sample coverage is degenerate (e.g. all features above threshold, or no rare features), and state what is returned.",
+      "State the output range (an estimated richness \u2265 observed richness, unbounded above) plus the integer-rounding caveat."
+    ],
+    "summary": "Accurate but incomplete: missing the rare/abundant threshold, degenerate-coverage behavior, and output range."
+  },
+  "2e7009ca57250bee": {
+    "object": "skbio.diversity.fisher_alpha",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Warn that fisher_alpha is solved numerically and can fail/return NULL or a huge value for degenerate samples (all singletons, a single feature, or S==N); agents need to know the result isn't always defined.",
+      "State the units/domain of the output (a positive real diversity parameter, roughly increasing with richness) so an agent can interpret or compare it \u2014 the prose defines it only by its model, not its scale.",
+      "Note that rounding to integers means fractional/relative-abundance inputs are truncated before fitting; the generic parameter doc 'Abundance value' should say raw integer counts are expected."
+    ],
+    "summary": "Accurate and clear, but silent on failure modes and output interpretation."
+  },
+  "06fcc4c25fc4b5dd": {
+    "object": "skbio.diversity.doubles",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Call out that returning a count as DOUBLE is intentional and that the rounding-to-int step decides doubleton membership \u2014 a value of 2.4 counts as 2, which can surprise callers passing relative abundances.",
+      "Add a one-line 'when to use' pointer (doubletons feed chao1/richness estimators) so an agent knows why it would pick this over `observed_features`.",
+      "Update the parameter description from the generic 'Abundance value' to note integer counts are expected."
+    ],
+    "summary": "Precise definition; would benefit from usage context and the rounding caveat."
+  },
+  "416eef2f7ef15345": {
+    "object": "skbio.diversity.brillouin_d",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Contrast Brillouin (fully-censused community) with Shannon (sampled) explicitly so an agent can choose correctly \u2014 the 'fully-censused' hint is good but names no alternative.",
+      "State the output units (nats vs bits) and that it's non-negative, so results are interpretable/comparable.",
+      "Note behavior on a single-feature or empty group (expected 0 / NULL)."
+    ],
+    "summary": "Strong metric doc; add units and a Shannon comparison for selection."
+  },
+  "c55460c2b98b5b6e": {
+    "object": "skbio.sequence.translate_six_frames",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State which genetic code / translation table is used (standard table 1?) and whether it's configurable \u2014 six-frame ORF scanning often needs alternative codes.",
+      "Clarify how trailing bases that don't complete a codon and non-ACGT/ambiguous/NULL sequences are handled (dropped, NULL protein, error?).",
+      "Note the emitted output column order/types explicitly (id, frame VARCHAR, protein VARCHAR) since the schema is fixed and long-format."
+    ],
+    "summary": "Well-explained six-frame layout; missing genetic-code and edge-case handling."
+  },
+  "b8f6337e01d78c43": {
+    "object": "skbio.sequence.reverse_transcribe",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Optionally note handling of ambiguous RNA/IUPAC codes and gaps (passed through or NULL) to define 'non-RNA input' precisely.",
+      "Mention output case (upper-cased?) since inputs are case-insensitive.",
+      "Cross-link `transcribe` and `reverse_complement` so agents see the full round-trip set."
+    ],
+    "summary": "Concise, accurate, and complete for the operation."
+  },
+  "e7d0345cac9daa4d": {
+    "object": "skbio.sequence.match_count",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Clarify comparison is position-wise and case-insensitive with no gap-aware logic, so `-` matches `-`.",
+      "Note relationship to Hamming distance (mismatch_count / length) so agents can chain to a distance.",
+      "State that unequal lengths return NULL rather than comparing the common prefix (already implied, but worth making explicit in doc_md too)."
+    ],
+    "summary": "Accurate and complete; minor gaps around gap/case semantics."
+  },
+  "a5272924c387ba4f": {
+    "object": "skbio.sequence.count_subsequence",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Specify whether counting is overlapping or non-overlapping (e.g. 'AAAA' vs 'AA') \u2014 this is the key ambiguity and changes results materially.",
+      "Define edge cases: empty subsequence, subsequence longer than sequence, and whether matching is case-insensitive like the other scalars.",
+      "Note it's a literal substring count (no IUPAC/ambiguity or regex), so a 'motif' with degenerate bases won't match."
+    ],
+    "summary": "Clear intent but omits the overlapping-count semantics and edge cases an agent needs."
+  },
+  "d020df20e78a7646": {
+    "object": "skbio.sequence.degap",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Confirm the gap set is exactly `-` and `.` and that other characters (e.g. `~`, whitespace) are preserved.",
+      "Note output case handling relative to the case-insensitive input convention of sibling functions.",
+      "Optionally mention this is length-changing (unlike the position-wise scalars) so it isn't chained with match_count on the raw output."
+    ],
+    "summary": "Accurate, complete, and well-scoped for alignment cleanup."
+  },
+  "4d8fa8fa496b0cf0": {
+    "object": "skbio.sequence.is_reverse_complement",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State the unequal-length behavior explicitly: a length mismatch yields false (a valid non-match), not NULL, so agents don't conflate it with the NULL/non-DNA case.",
+      "Note whether IUPAC degenerate codes and gaps are tolerated on input (reverse_complement supports them), since is_reverse_complement is built on the same DNA type.",
+      "Add a false-returning example (e.g. ('ATGC','ATGC') \u2192 false) alongside the true one so the predicate's discrimination is visible."
+    ],
+    "summary": "Accurate and well-scoped; only edge-case (length mismatch, degenerates) behavior is unstated."
+  },
+  "02922fac725082d1": {
+    "object": "skbio.sequence.has_degenerates",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Make clear this is DNA-only: a protein/RNA string is 'non-DNA' and returns NULL, so agents don't apply it to amino-acid columns expecting a false.",
+      "Clarify that gaps ('-','.') are not degenerates here \u2014 has_gaps covers those \u2014 to prevent overlap confusion.",
+      "Consider listing the full degenerate set or linking IUPAC, since 'N, R, Y, ...' leaves the boundary ambiguous."
+    ],
+    "summary": "Clear, accurate DNA ambiguity predicate; DNA-only restriction could be stated outright."
+  },
+  "cd8918a6af5067b4": {
+    "object": "skbio.sequence.gc_frequency",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State gap handling explicitly: gc_content documents 'gaps excluded from the denominator', so gc_frequency's count semantics over gapped sequences should be spelled out for consistency.",
+      "Note the return is a non-negative BIGINT and that G/C matching is case-insensitive (already implied but not asserted for this fn).",
+      "The 'divide by length(seq)' tip is good but slightly misleading if gaps are present \u2014 either qualify it or point strictly at gc_content for the fraction."
+    ],
+    "summary": "Accurate raw-count function with a useful gc_content cross-reference; gap semantics unstated."
+  },
+  "29f97e8ec07c0dbb": {
+    "object": "skbio.sequence.mismatch_count",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State the alphabet: does it accept any VARCHAR pair (protein, arbitrary strings) or only nucleotide/protein grammared types? 'sequence' is vague for column selection.",
+      "Clarify that case-insensitivity means 'a' vs 'A' counts as a match, since mismatch semantics hinge on normalization.",
+      "Cross-reference match_count + mismatch_count = length as an invariant agents can use to validate results."
+    ],
+    "summary": "Accurate Hamming-count function with good sibling cross-refs; input alphabet is underspecified."
+  },
+  "20a6b71f59f051a9": {
+    "object": "skbio.sequence.has_gaps",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Note the parse path: has_gaps runs through _grammared (DNA-if-valid-else-protein), so a string that is neither valid DNA nor protein returns NULL rather than false \u2014 worth stating.",
+      "Reinforce the has_gaps\u2192degap workflow pairing with a one-line combined example.",
+      "Confirm both '-' and '.' are treated identically as gaps (doc says so; an example with '.' would prove it)."
+    ],
+    "summary": "Accurate, complete gap predicate matching the '-'/'.' code exactly; only the non-parseable\u2192NULL edge is implicit."
+  },
+  "c8956fae5f51b3ae": {
+    "object": "skbio.stats.ancom",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Document the internal pseudocount: encode() runs ancom(frame + 1, grouping), so zeros are handled by a fixed +1 and there is no user pseudocount arg \u2014 agents shouldn't expect one.",
+      "State input constraints that will raise: at least two groups and every sample assigned a group label (the join in the example is not optional), plus what happens with a single group.",
+      "Define the output more precisely for consumers: 'w' is a count in 0..(#features-1) and 'significant' is ANCOM's own detection flag (not a p-value threshold you control)."
+    ],
+    "summary": "Prose matches the (feature_id, w, significant) schema, but the internal +1 pseudocount and group constraints are omitted."
+  },
+  "f153aaec966c4384": {
+    "object": "skbio.stats.rclr",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 2,
+      "clarity": 3,
+      "completeness": 3,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "Resolve the contradiction: doc_llm says '(no pseudocount)' while doc_md and the parameter list advertise 'pseudocount := added to every value first to handle zeros' \u2014 and the code DOES add pseudocount via _pivot before rclr. Pick one story (rclr's point is masked zeros, but the arg still applies) and make both docs agree.",
+      "State the output columns: the result column is named 'rclr' (not 'value'), i.e. (sample_id, feature_id, rclr) \u2014 neither doc mentions the output shape, which an agent needs to consume it.",
+      "Fix the doc_md grammar: '**rclr** \u2014 It is the robust centred log-ratio...' reads awkwardly because the shared template prepends a capitalized 'It' after the em-dash."
+    ],
+    "summary": "Self-contradictory on pseudocount (doc_llm 'none' vs doc_md/params/code 'applied') and silent on the 'rclr' output column."
+  },
+  "ca7ff1ae1591d2f1": {
+    "object": "skbio.stats.power",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 3,
+      "completeness": 3,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "The doc_md bullet list omits the defining 'power :=' argument (it appears only in the header sentence), while listing the secondary 'pseudocount :='; the primary exponent arg must be a first-class bullet with its default.",
+      "Document the default power := 1.0, which is an identity/no-op \u2014 an agent that omits it gets back a re-closed composition, not an error, which is surprising.",
+      "State the output columns (sample_id, feature_id, value) and note the result is a closed composition (parts sum to 1 per sample); also fix the templated '**power** \u2014 It raises...' grammar."
+    ],
+    "summary": "Core 'power :=' arg is missing from the doc_md bullets and its no-op default is undocumented; output shape unstated."
+  },
+  "fa8ef011951df2e2": {
+    "object": "skbio.stats.pca",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State the output column types (pc_1..pc_k as DOUBLE) and note that requesting n_components greater than min(samples, features) will cap/NULL-pad, mirroring the pcoa caveat.",
+      "Clarify preprocessing: whether feature values are centered/scaled before covariance decomposition, and that missing (sample,feature) cells are zero-filled when pivoting the long table to a dense matrix.",
+      "The `value` parameter is typed VARCHAR because it names a column, but underlying values must be numeric \u2014 say so, since an agent may otherwise pass string values."
+    ],
+    "summary": "Strong, accurate PCA doc; add output types, preprocessing (centering/zero-fill), and dimension-cap behavior."
+  },
+  "a8f33d91105e3045": {
+    "object": "skbio.stats.multi_replace",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 3,
+      "clarity": 4,
+      "completeness": 2,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "Resolve the contradiction: multi_replace *is* multiplicative zero-replacement, yet `pseudocount` is described as 'added to every value first to handle zeros' \u2014 explain what the pseudocount actually controls (e.g. the replacement magnitude) or note it is redundant with the built-in replacement.",
+      "Describe the output schema \u2014 it is not stated whether the result is long (sample_id, feature_id, value) proportions and that per-sample rows now sum to 1.",
+      "Give the default `pseudocount` value and note that inputs should be non-negative counts/parts (not already-logged coordinates)."
+    ],
+    "summary": "Pseudocount-vs-multiplicative-replacement contradiction and missing output schema undermine an otherwise clear transform doc."
+  },
+  "a5d41f61ab3b90e4": {
+    "object": "skbio.stats.ilr_inv",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 2,
+      "clarity": 3,
+      "completeness": 2,
+      "audience_fit": 2
+    },
+    "suggestions": [
+      "Fix the input description: the prose says `(sample_id, feature_id, value)` but this is an inverse transform whose example correctly uses `(sample_id, coordinate, value)` \u2014 the second column is an ILR *coordinate index*, not a feature id.",
+      "Remove or qualify `pseudocount`/'offsets zeros': ILR coordinates are real-valued (can be negative), so zero-offsetting is meaningless and misleading for an inverse.",
+      "State the output: D-part composition (D = input coordinates + 1) with parts summing to 1, and how the output parts are labeled."
+    ],
+    "summary": "Boilerplate feature/pseudocount text is wrong for an inverse-from-coordinates transform; input semantics and output shape need correcting."
+  },
+  "e9b4969d41a709e6": {
+    "object": "skbio.stats.dirmult_ttest",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Reconcile terminology: doc_llm calls it a 'Holm-adjusted p-value' while doc_md/output names the column `qvalue` (which conventionally implies FDR/BH) \u2014 state exactly which multiple-testing correction is applied.",
+      "State the two-group requirement explicitly (the group column must contain exactly two distinct labels) and that reference/treatment is chosen by sorted label order (so sign of log2_fold_change is predictable).",
+      "The fourth-arg override is named `group` but the value/count override is confusingly named `value` while described as 'Count column' \u2014 align the doc so an agent knows `count :=` vs `value :=`."
+    ],
+    "summary": "Clear, well-scoped differential-abundance doc; tighten qvalue-vs-Holm naming and the two-group constraint."
+  },
+  "c45006a79d8283f3": {
+    "object": "skbio.stats.alr",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Describe the output rows: ALR yields D-1 log-ratios per sample \u2014 state which feature (the reference at `ref_idx`) is dropped and how the remaining rows are labeled in the long output.",
+      "Note that `ref_idx` is 0-based over the sorted feature ids and clarify behavior if it is out of range.",
+      "Give the default `pseudocount` and note ALR is only defined for positive parts, so zeros must be offset (unlike closure)."
+    ],
+    "summary": "Accurate ALR doc; needs explicit D-1 output labeling and ref_idx/pseudocount edge details."
+  },
+  "36bcc9a7171c58e4": {
+    "object": "skbio.stats.closure",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Reconsider `pseudocount ... to handle zeros`: closure (rescale-to-sum-1) is well-defined with zeros, so zero-handling is not required here \u2014 clarify that the pseudocount is optional and why one would use it.",
+      "State the output schema (long sample_id/feature_id/value with each sample summing to 1) and default pseudocount value.",
+      "Note the degenerate case of an all-zero sample (sum 0) and how it is handled."
+    ],
+    "summary": "Correct closure description, but the 'pseudocount to handle zeros' framing is misleading and the output schema is unstated."
+  },
+  "fc4e4bcbe68e1ad4": {
+    "object": "skbio.stats.clr_inv",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 2,
+      "clarity": 3,
+      "completeness": 2,
+      "audience_fit": 2
+    },
+    "suggestions": [
+      "Fix the input columns: prose says `feature_id` but the example uses `(sample_id, coordinate, value)` \u2014 the input is CLR coordinates (real-valued), not raw features.",
+      "Drop/qualify the `pseudocount` 'offsets zeros' text \u2014 CLR coordinates can be negative and sum to ~0, so zero-offsetting is inappropriate for the inverse.",
+      "State the output: a composition (softmax of the coordinates) with parts summing to 1, and how output parts are labeled/ordered."
+    ],
+    "summary": "Same feature/pseudocount boilerplate mismatch as ilr_inv; input is coordinates and the output composition is undocumented."
+  },
+  "101045181605bfce": {
+    "object": "skbio.stats.pairwise_vlr",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Note matrix properties: the result is symmetric (vlr(i,j)=vlr(j,i)) with a zero diagonal, and whether all N\u00b2 pairs or just a triangle are emitted \u2014 this affects downstream joins/dedup.",
+      "State the `vlr` output column type (DOUBLE) and that it is unbounded/non-negative, plus the default pseudocount.",
+      "Add a when-to-use contrast with a plain correlation matrix (VLR is scale-invariant/compositionally coherent), since that is the main reason to pick it."
+    ],
+    "summary": "Excellent VLR doc; only missing symmetry/diagonal/emission-shape and output-type specifics."
+  },
+  "adb48b09f4ffaa3e": {
+    "object": "skbio.stats.alr_inv",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 2,
+      "clarity": 3,
+      "completeness": 2,
+      "audience_fit": 2
+    },
+    "suggestions": [
+      "Document `ref_idx` (BIGINT, 0-based reference part over sorted features) \u2014 it is in the parameter list but absent from both doc_llm and doc_md, so an agent has no way to know it exists or that it must match the `ref_idx` used by the forward `alr`.",
+      "Clarify that inputs are ALR coordinates (D-1 per sample, can be negative), not counts, and that the second column is a coordinate index rather than a real feature id; then explain why a zero-offsetting `pseudocount` even applies to log-ratio inputs \u2014 as written it is misleading.",
+      "Describe the output schema (long proportions summing to 1 per sample, D parts including the recovered reference) \u2014 the doc never states what columns/shape come back."
+    ],
+    "summary": "Prose omits the required `ref_idx` parameter and misframes log-ratio inputs as a count/zero problem."
+  },
+  "18466668879cf9e9": {
+    "object": "skbio.stats.ca",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State explicitly that only per-sample scores are returned (no feature scores, eigenvalues, or per-axis inertia/proportion-explained table), so agents don't expect a diagnostics column.",
+      "Note the effective cap on `n_components` (min(samples, features) \u2212 1) and what happens when more axes are requested, mirroring the PCoA NULL-padding caveat.",
+      "`value` is typed VARCHAR yet the text requires non-negative counts \u2014 mention the cast so callers know strings are coerced."
+    ],
+    "summary": "Accurate, well-scoped CA doc; gaps are output diagnostics and dimensionality limits."
+  },
+  "351fb65ed84159c0": {
+    "object": "skbio.stats.centralize",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 3,
+      "completeness": 3,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "Describe the output schema (long sample_id/feature_id/value of the centred composition) \u2014 neither doc says what shape or columns are returned.",
+      "Fix the templated phrasing 'It centres each sample's...' (capital I mid-sentence in both description continuation and doc_md) and state whether outputs are proportions summing to 1.",
+      "Clarify the relationship to `clr`/`ilr` and when to reach for centralize (perturbation to the geometric-mean centre) vs a log-ratio transform, so an agent can choose correctly."
+    ],
+    "summary": "Correct but thin: output shape and selection guidance are missing and phrasing is templated."
+  },
+  "513a4e8d99e3e8fc": {
+    "object": "skbio.tree.upgma",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State the input requirements: a complete/symmetric distance matrix (diagonal zero-filled and symmetrized upstream) and a minimum of ~3 taxa.",
+      "Note that output branch lengths are in the same units as the input distances and that the ultrametric height is meaningful here (unlike unrooted builders).",
+      "Add a one-line contrast to `neighbor_joining`/`gme`/`bme` (UPGMA assumes a molecular clock; prefer NJ/ME when rates vary) to aid method selection."
+    ],
+    "summary": "Excellent method-aware doc; only input constraints and units are under-specified."
+  },
+  "9982d6bfc71dcbea": {
+    "object": "skbio.tree.neighbor_joining",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Note NJ requires \u22653 taxa and can produce negative branch lengths \u2014 useful for callers validating output.",
+      "Since the tree is unrooted, flag that `tree_height` is less meaningful here (the companion list currently reads the same as for rooted UPGMA).",
+      "Mention the input matrix must be complete/symmetric and that branch lengths inherit the input distance units."
+    ],
+    "summary": "Strong doc; unrooted-specific caveats (tree_height, negative branches, min taxa) would round it out."
+  },
+  "726b033ca5289dd4": {
+    "object": "skbio.tree.gme",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State the accuracy/speed tradeoff behind 'fast for large matrices' (greedy heuristic, often used as a starting tree refined by `bme`).",
+      "Note \u22653 taxa and a complete/symmetric distance matrix as input requirements.",
+      "As with NJ, flag that the tree is unrooted so `tree_height` is of limited use in the companion list."
+    ],
+    "summary": "Clear ME doc; add input constraints and the gme\u2192bme relationship for method selection."
+  },
+  "54155808b7bb91d3": {
+    "object": "skbio.tree.bme",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Contrast with `gme` explicitly (BME optimizes a balanced weighting / typically more accurate but slower) so an agent can choose between the two ME variants.",
+      "Note \u22653 taxa and a complete/symmetric input matrix.",
+      "Flag unrooted output so `tree_height` in the companion list carries a caveat."
+    ],
+    "summary": "Accurate BME doc; needs the gme-vs-bme decision cue and input constraints."
+  },
+  "67410a705cef5681": {
+    "object": "skbio.tree.weighted_robinson_foulds",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State that the result is unnormalized and expressed in the trees' branch-length units (and that there is no normalized variant), so magnitudes are interpretable across comparisons.",
+      "Clarify behavior when the two trees have differing taxa sets (error vs NULL vs partial) \u2014 'same taxa' is stated as an assumption but not what happens if violated.",
+      "Note the metric is symmetric (argument order does not matter) to reassure callers."
+    ],
+    "summary": "Solid scalar doc; add units/normalization and mismatched-taxa behavior."
+  },
+  "09f18bf97fed98e6": {
+    "object": "skbio.tree.total_branch_length",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State explicitly that the sum spans every edge including internal branches (it traverses all nodes), not just terminal/tip branches, so agents don't mistake it for a tips-only sum.",
+      "Tighten the Faith's-PD claim: it equals Faith's PD only when the per-row tree is already pruned to exactly the sample's features; note that the SQL builders here (nj/upgma/...) produce such a tree, but an arbitrary reference tree will overcount.",
+      "Note that branch-length units are whatever the tree encodes (arbitrary/unitless) and that negative branch lengths (possible from nj/gme/bme) are summed as-is, so results can be smaller than expected."
+    ],
+    "summary": "Accurate and clear; only the Faith's-PD equivalence and the 'all edges' scope need slight sharpening."
+  },
+  "84eae88e2d71a35e": {
+    "object": "skbio.tree.tip_count",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Clarify it counts leaf nodes only (excludes internal/root nodes), so agents don't expect a total node count.",
+      "Mention edge behavior for a single-taxon/degenerate Newick (e.g. 'a;') and that a repeated/duplicate tip label still counts once per leaf node.",
+      "Add a second example threading a builder's output (e.g. tip_count over a neighbor_joining result) to show the intended pipeline."
+    ],
+    "summary": "Correct and concise; a touch sparse on leaf-only semantics and edge cases."
+  },
+  "6888a404e0ae8c51": {
+    "object": "skbio.tree.robinson_foulds",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Warn that mismatched taxon sets do NOT error or return NULL \u2014 skbio's compare_rfd silently returns a misleading value (verified: {a,b,c,d} vs {a,b,c,e} \u2192 0.0), so agents must ensure identical tip labels themselves.",
+      "Explain the value is always a whole number despite the DOUBLE return type, and that it is unnormalized (max = 2*(n-3) for n taxa); suggest dividing by that for a comparable [0,1] score.",
+      "Note that RF requires resolved/bifurcating comparisons behave differently under polytomies, and that it ignores branch lengths (already said) so weighted_robinson_foulds is the branch-aware alternative \u2014 cross-link it."
+    ],
+    "summary": "Definition is accurate but omits the dangerous silent-value-on-mismatched-taxa behavior and normalization guidance."
+  },
+  "332f216b54fb2e08": {
+    "object": "skbio.tree.tree_height",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Add the key caveat that height is rooting-dependent: nj/gme/bme produce unrooted trees whose parsed 'root' is arbitrary, so height is only meaningful for rooted/ultrametric trees (upgma) \u2014 an agent could otherwise apply it to an nj tree and get a meaningless number.",
+      "Clarify that missing branch lengths count as 0, so a topology-only Newick yields height 0 (or an undercount when some lengths are present), rather than NULL.",
+      "State units are tree-dependent/unitless, matching the branch-length scale of the input."
+    ],
+    "summary": "Formula is accurately described but the crucial rooting-dependence caveat for unrooted builder trees is missing."
+  },
+  "6804d0b414b4bc6b": {
+    "object": "skbio.tree.cophenetic_distance",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 3,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 3
+    },
+    "suggestions": [
+      "Correct the metric description: skbio's default is metric='unitcorr' = (1-r)/2, a unit correlation distance bounded in [0,1] \u2014 NOT the raw 'how much the path-length matrices disagree' Euclidean magnitude the docs imply; fix both doc_llm and doc_md.",
+      "Fix the misleading 'branch-length sensitive' claim: because it is correlation-based it is scale-invariant (verified: two proportionally-scaled trees give exactly 0.0), so it reflects relative structure, not absolute branch lengths; say '0 = identical up to scale, 1 = maximally uncorrelated'.",
+      "Document behavior on non-identical taxon sets (it compares over shared tips) and state the fixed [0,1] range so agents can interpret magnitudes."
+    ],
+    "summary": "Mischaracterizes the default unit-correlation metric as an unbounded scale-sensitive path-length distance; it is actually a [0,1] scale-invariant measure."
   }
 }

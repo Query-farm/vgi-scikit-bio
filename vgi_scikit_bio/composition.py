@@ -469,7 +469,8 @@ _SAME_SHAPE_FUNCTIONS: list[type] = [
     _make_same_shape(
         "rclr",
         _rclr,
-        "It is the robust centred log-ratio: like CLR but leaves zeros out of the geometric mean (no pseudocount).",
+        "It is the robust centred log-ratio: like CLR but it leaves zeros out of the geometric mean, so a "
+        "pseudocount is usually unnecessary (leave `pseudocount :=` at 0).",
         "rclr",
     ),
     _make_same_shape(

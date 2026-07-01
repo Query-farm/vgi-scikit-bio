@@ -24,8 +24,9 @@ DuckDB and scikit-bio, so you get scikit-bio's algorithms without leaving SQL.
 - [Install & attach](#install--attach)
 - [What's inside](#whats-inside)
   - [`sequence` — biological sequences](#sequence--biological-sequences)
-  - [`diversity` — alpha & beta diversity](#diversity--alpha--beta-diversity)
-  - [`stats` — ordination, distance tests, composition](#stats--ordination-distance-tests-composition)
+  - [`alignment` — pairwise alignment](#alignment--pairwise-alignment)
+  - [`diversity` — alpha, beta, phylogenetic, rarefaction](#diversity--alpha-beta-phylogenetic-rarefaction)
+  - [`stats` — ordination, distance tests, composition, differential abundance](#stats--ordination-distance-tests-composition-differential-abundance)
   - [`tree` — phylogenetics](#tree--phylogenetics)
 - [A worked microbiome example](#a-worked-microbiome-example)
 - [Data-shape conventions](#data-shape-conventions)
@@ -58,9 +59,11 @@ ATTACH 'skbio' (TYPE vgi, LOCATION 'vgi-scikit-bio');
 ATTACH 'skbio' (TYPE vgi, LOCATION 'uv run scikit_bio_worker.py');
 ```
 
-Functions are organised into four schemas — `sequence` (the default), `diversity`,
-`stats`, and `tree` — so `skbio.sequence.gc_content(...)` also resolves as
-`skbio.gc_content(...)`.
+Functions are organised into **five schemas** — `sequence` (the default),
+`alignment`, `diversity`, `stats`, and `tree` — so `skbio.sequence.gc_content(...)`
+also resolves as `skbio.gc_content(...)`. There are **~90 functions**; the tables
+below list them by area (grouped by the schema's category sections, which the
+worker also exposes for navigation).
 
 ---
 
@@ -72,81 +75,81 @@ Per-sequence functions over `VARCHAR` columns of DNA/RNA/protein. Input is
 upper-cased and stripped; a NULL or invalid sequence yields NULL rather than
 failing the whole query.
 
-| Function | Kind | Returns | Description |
-| --- | --- | --- | --- |
-| `gc_content(seq)` | scalar | `DOUBLE` | GC fraction of DNA in `[0, 1]` |
-| `reverse_complement(seq)` | scalar | `VARCHAR` | opposite-strand sequence |
-| `complement(seq)` | scalar | `VARCHAR` | base complement (order preserved) |
-| `transcribe(seq)` | scalar | `VARCHAR` | DNA → RNA (T → U) |
-| `translate(seq)` | scalar | `VARCHAR` | DNA → protein (standard code) |
-| `is_valid_dna(seq)` | scalar | `BOOLEAN` | is the string valid IUPAC DNA? |
-| `is_valid_protein(seq)` | scalar | `BOOLEAN` | is the string valid IUPAC protein? |
-| `hamming_distance(a, b)` | scalar | `DOUBLE` | mismatch fraction of two equal-length sequences |
-| `kmer_frequencies(tbl, k := …)` | table | long | overlapping k-mer counts per sequence |
-| `residue_frequencies(tbl)` | table | long | single base/amino-acid counts per sequence |
+- **Transforms** — `gc_content`, `gc_frequency`, `reverse_complement`,
+  `complement`, `transcribe`, `reverse_transcribe`, `translate`, `degap`
+- **Validation** — `is_valid_dna`, `is_valid_protein`, `has_gaps`,
+  `has_degenerates`, `is_reverse_complement`
+- **Distance** — `hamming_distance`, `mismatch_count`, `match_count`
+- **Composition** (table functions, long output) — `kmer_frequencies`,
+  `residue_frequencies`, `count_subsequence`, `translate_six_frames`
 
 ```sql
--- Profile reads by GC content
+-- Profile reads by GC content, keeping only valid DNA
 SELECT id, skbio.sequence.gc_content(seq) AS gc
-FROM reads
-WHERE skbio.sequence.is_valid_dna(seq);
+FROM reads WHERE skbio.sequence.is_valid_dna(seq);
 
 -- 4-mer feature matrix (long → pivot for a wide matrix)
 SELECT id, kmer, count
 FROM skbio.sequence.kmer_frequencies((SELECT id, seq FROM reads), id := 'id', k := 4);
 ```
 
-### `diversity` — alpha & beta diversity
+### `alignment` — pairwise alignment
+
+- **Score** — `align_score_nucleotide(a, b)`, `align_score_protein(a, b)` →
+  optimal global-alignment score
+- **Pairwise** — `pairwise_align_nucleotide` / `pairwise_align_protein` → aligned
+  strings + score + length; `mode := 'global'` (Needleman–Wunsch) or `'local'`
+  (Smith–Waterman)
+
+```sql
+SELECT aligned_1, aligned_2, score
+FROM skbio.alignment.pairwise_align_nucleotide((SELECT id, ref, read FROM pairs),
+     seq1 := 'ref', seq2 := 'read');
+```
+
+### `diversity` — alpha, beta, phylogenetic, rarefaction
 
 Community-ecology diversity over a **long feature table** — one row per
 `(sample, feature, count)`.
 
-**Alpha diversity** is a set of SQL aggregates over the `count` column, so
-`GROUP BY sample` gives one value per sample:
-
-| Aggregate | Description |
-| --- | --- |
-| `shannon(count)` | Shannon entropy (richness + evenness) |
-| `simpson(count)` | Simpson index (`1 − dominance`) |
-| `inv_simpson(count)` | inverse Simpson (effective number of features) |
-| `observed_features(count)` | richness (non-zero features) |
-| `chao1(count)` | Chao1 estimated richness (corrects for unseen) |
-| `pielou_evenness(count)` | Pielou's evenness in `[0, 1]` |
-| `dominance(count)` | Simpson's dominance |
+- **Alpha** (aggregates over `count`, `GROUP BY sample`) — the full scikit-bio
+  metric family: `shannon`, `simpson`, `inv_simpson`, `observed_features`,
+  `chao1`, `pielou_evenness`, `dominance`, `ace`, `berger_parker_d`,
+  `brillouin_d`, `fisher_alpha`, `gini_index`, `goods_coverage`, `heip_evenness`,
+  `kempton_taylor_q`, `margalef`, `mcintosh_d`, `mcintosh_e`, `menhinick`,
+  `robbins`, `simpson_d`, `simpson_e`, `strong`, `singles`, `doubles`, `enspie`;
+  parameterized `hill(count, q := …)` / `renyi` / `tsallis`; and interval/triple
+  metrics `chao1_ci`, `esty_ci`, `osd` (return `DOUBLE[]`)
+- **Beta** — `beta_diversity(tbl, metric := …)` → the full distance matrix long
+  (`braycurtis`, `jaccard`, `euclidean`, `canberra`, `cosine`, `jensenshannon`, …)
+- **Phylogenetic** (given a `tree := '<newick>'`) — `faith_pd` (per-sample PD),
+  `unifrac` (weighted/unweighted distance matrix)
+- **Preprocessing** — `subsample_counts(tbl, depth := N)` (rarefaction)
 
 ```sql
 SELECT sample_id,
-       skbio.diversity.shannon(count)  AS shannon,
-       skbio.diversity.chao1(count)    AS chao1
-FROM feature_table
-GROUP BY sample_id;
-```
+       skbio.diversity.shannon(count) AS shannon,
+       skbio.diversity.chao1(count)   AS chao1
+FROM feature_table GROUP BY sample_id;
 
-**Beta diversity** is a table function that emits the full between-sample
-distance matrix in long form, ready for `pcoa` / `permanova`:
-
-```sql
 SELECT * FROM skbio.diversity.beta_diversity(
-  (SELECT sample_id, feature_id, count FROM feature_table),
-  metric := 'braycurtis');   -- also: jaccard, euclidean, cityblock, canberra, cosine, ...
--- → (id_1, id_2, distance)
+  (SELECT sample_id, feature_id, count FROM feature_table), metric := 'braycurtis');
 ```
 
-### `stats` — ordination, distance tests, composition
+### `stats` — ordination, distance tests, composition, differential abundance
 
-| Function | Description |
-| --- | --- |
-| `pcoa(dm, n_components := k)` | Principal Coordinates Analysis → `(sample_id, pc_1 … pc_k)` |
-| `permanova(dm_with_group)` | does a grouping explain between-sample distances? (pseudo-F) |
-| `anosim(dm_with_group)` | are within-group distances smaller than between-group? (R) |
-| `mantel(two_dms)` | correlation between two distance matrices |
-| `clr(feature_table)` | centred log-ratio transform (same long shape) |
-| `ilr(feature_table)` | isometric log-ratio transform (`D−1` components) |
+- **Ordination** — `pcoa(dm)` (distance matrix), `pca(tbl)` /
+  `ca(tbl)` (feature table) → `(sample_id, <axis>_1 … k)`
+- **Hypothesis tests** — `permanova` / `anosim` (grouping in a 4th column),
+  `mantel` (two distance columns)
+- **Composition** — transforms `clr`, `ilr`, `alr`, `closure`, `centralize`,
+  `rclr`, `multi_replace`, `power`; inverses `clr_inv`, `ilr_inv`, `alr_inv`;
+  association `pairwise_vlr`
+- **Differential abundance** — `ancom`, `dirmult_ttest` (grouping in a 4th column)
 
-`pcoa`, `permanova`, `anosim`, and `mantel` all read the long
-`(id_1, id_2, distance)` distance matrix produced by `beta_diversity`.
-`permanova`/`anosim` take the sample grouping as a fourth column (the group of
-`id_1`); `mantel` takes two distance columns.
+`pcoa`/`permanova`/`anosim`/`mantel` read the long `(id_1, id_2, distance)` matrix
+from `beta_diversity`. `pca`/`ca` and the composition/ANCOM functions read a long
+feature table.
 
 ```sql
 -- Embed samples in 2-D from a Bray–Curtis matrix
@@ -157,17 +160,25 @@ SELECT * FROM skbio.stats.pcoa(
 
 ### `tree` — phylogenetics
 
-| Function | Kind | Description |
-| --- | --- | --- |
-| `neighbor_joining(dm)` | table | build an unrooted tree from a distance matrix → one `newick` row |
-| `tip_count(newick)` | scalar | number of tips (leaves) in a Newick tree |
-| `total_branch_length(newick)` | scalar | sum of all branch lengths (Faith's PD over a feature tree) |
+- **Construction** (distance matrix → one `newick` row) — `neighbor_joining`,
+  `upgma`, `gme`, `bme`
+- **Inspection** (scalars over a Newick string) — `tip_count`,
+  `total_branch_length`, `tree_height`
+- **Comparison** (two Newick trees → distance) — `robinson_foulds`,
+  `weighted_robinson_foulds`, `cophenetic_distance`
 
 ```sql
 SELECT newick
 FROM skbio.tree.neighbor_joining(
   (SELECT * FROM skbio.diversity.beta_diversity((SELECT * FROM feature_table))));
 ```
+
+> **Not exposed** (they don't map to a single SQL function): constrained
+> ordination `cca`/`rda` and `bioenv`/`pwmantel` (need a second matrix beyond the
+> one subquery slot); `permdisp` (an upstream bug in scikit-bio 0.7.3); and
+> stateful/IO surface (`TabularMSA`, BIOM `Table`, FASTA/FASTQ readers — DuckDB
+> already reads files) and randomness-seeded estimators (`lladser_*`,
+> `michaelis_menten_fit`).
 
 ---
 

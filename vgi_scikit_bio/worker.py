@@ -69,18 +69,27 @@ SOURCE_URL = "https://github.com/query-farm/vgi-scikit-bio"
 # Catalog-level metadata surfaced through duckdb_databases() (comment + tags).
 _CATALOG_COMMENT = "scikit-bio for SQL: sequence analysis, community diversity, ordination, and phylogenetics in DuckDB"
 _CATALOG_DESCRIPTION_LLM = (
-    "scikit-bio for SQL. Analyze biological sequences (GC content, reverse complement, translation, "
-    "k-mer and residue composition); compute alpha diversity as aggregates and beta-diversity distance "
-    "matrices; run PCoA ordination, PERMANOVA/ANOSIM/Mantel distance tests, and CLR/ILR compositional "
-    "transforms; and build neighbour-joining trees — all as DuckDB scalar, aggregate, and table functions."
+    "scikit-bio for SQL — comprehensive bioinformatics in DuckDB. Analyze biological sequences "
+    "(GC content, reverse complement, translation, six-frame translation, k-mer/residue composition, "
+    "validation, and sequence distances); align sequence pairs (global/local, with scores and aligned "
+    "strings); compute the full family of alpha-diversity metrics as aggregates and beta-diversity "
+    "distance matrices (including phylogenetic Faith's PD and UniFrac); rarefy feature tables; run PCA/CA/"
+    "PCoA ordination, PERMANOVA/ANOSIM/Mantel distance tests, CLR/ILR/ALR and other compositional "
+    "transforms, and ANCOM/Dirichlet-multinomial differential abundance; and build and compare "
+    "phylogenetic trees (neighbour joining, UPGMA, minimum evolution; Robinson-Foulds and cophenetic "
+    "distances) — all as DuckDB scalar, aggregate, and table functions."
 )
 _CATALOG_DESCRIPTION_MD = (
     "# scikit-bio for SQL\n\n"
     "Exposes [scikit-bio](https://scikit.bio) to DuckDB/SQL as VGI functions:\n\n"
-    "- **Sequence** — GC content, reverse complement, translation, k-mer & residue composition\n"
-    "- **Diversity** — alpha-diversity aggregates (`shannon`, `chao1`, ...) and beta-diversity matrices\n"
-    "- **Stats** — PCoA ordination, PERMANOVA / ANOSIM / Mantel tests, CLR/ILR transforms\n"
-    "- **Tree** — neighbour-joining construction and Newick inspection"
+    "- **Sequence** — GC content, reverse complement, translation (incl. six-frame), composition, "
+    "validation, sequence distances\n"
+    "- **Alignment** — global/local pairwise alignment (scores and aligned strings)\n"
+    "- **Diversity** — the full alpha-diversity metric family (aggregates), beta-diversity matrices, "
+    "phylogenetic Faith's PD & UniFrac, and rarefaction\n"
+    "- **Stats** — PCA/CA/PCoA ordination, PERMANOVA / ANOSIM / Mantel tests, CLR/ILR/ALR transforms, "
+    "ANCOM & Dirichlet-multinomial differential abundance\n"
+    "- **Tree** — neighbour joining / UPGMA / minimum evolution, Newick inspection, and tree comparison"
 )
 # Guaranteed-runnable, self-contained examples advertised on the catalog
 # (VGI509): each is fully schema-qualified and executes as written against a
@@ -100,6 +109,18 @@ _CATALOG_EXECUTABLE_EXAMPLES = json.dumps(
             "sql": (
                 "SELECT * FROM skbio.sequence.kmer_frequencies((SELECT * FROM "
                 "(VALUES (1, 'ATGCGGATTACAGG'), (2, 'TTGCACGT')) AS reads(id, seq)), id := 'id', k := 3)"
+            ),
+        },
+        {
+            "description": "Optimal global alignment score between two DNA sequences.",
+            "sql": "SELECT skbio.alignment.align_score_nucleotide('ACTGGT', 'ACTGT') AS score",
+        },
+        {
+            "description": "Faith's phylogenetic diversity per sample given a tree.",
+            "sql": (
+                "SELECT * FROM skbio.diversity.faith_pd((SELECT * FROM "
+                "(VALUES ('s1','f1',1),('s1','f2',1),('s2','f3',1),('s2','f4',1)) AS t(sample_id, feature_id, count)), "
+                "tree := '((f1:0.1,f2:0.2):0.3,(f3:0.15,f4:0.25):0.35);')"
             ),
         },
         {
@@ -135,11 +156,13 @@ _CATALOG_TAGS = {
             "bioinformatics",
             "sequence",
             "dna",
+            "alignment",
             "diversity",
+            "unifrac",
             "ordination",
             "phylogenetics",
             "microbiome",
-            "distance matrix",
+            "differential abundance",
             "composition",
         ]
     ),
@@ -232,6 +255,30 @@ _CATALOG_TAGS = {
                     "Return a single row with one column named tips."
                 ),
                 "reference_sql": "SELECT skbio.tree.tip_count('((a:2,b:3):3,d:4,c:4);') AS tips",
+            },
+            {
+                "name": "alignment_score",
+                "prompt": (
+                    "Compute the optimal global alignment score between the DNA sequences 'ACTGGT' and "
+                    "'ACTGT'. Return a single row with one column named score."
+                ),
+                "reference_sql": "SELECT skbio.alignment.align_score_nucleotide('ACTGGT', 'ACTGT') AS score",
+            },
+            {
+                "name": "faith_pd",
+                "prompt": (
+                    "Given the feature table (s1,'f1',1), (s1,'f2',1), (s2,'f3',1), (s2,'f4',1) as "
+                    "(sample_id, feature_id, count) and the tree "
+                    "'((f1:0.1,f2:0.2):0.3,(f3:0.15,f4:0.25):0.35);', compute Faith's phylogenetic "
+                    "diversity of each sample, rounded to 4 decimals. Return columns sample_id and "
+                    "faith_pd, ordered by sample_id."
+                ),
+                "reference_sql": (
+                    "SELECT sample_id, round(faith_pd, 4) AS faith_pd FROM skbio.diversity.faith_pd((SELECT * FROM "
+                    "(VALUES ('s1','f1',1),('s1','f2',1),('s2','f3',1),('s2','f4',1)) "
+                    "AS t(sample_id, feature_id, count)), "
+                    "tree := '((f1:0.1,f2:0.2):0.3,(f3:0.15,f4:0.25):0.35);') ORDER BY sample_id"
+                ),
             },
         ]
     ),
@@ -367,19 +414,23 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
         "keywords": json.dumps(["diversity", "alpha", "beta", "ecology", "microbiome"]),
         "doc_llm": (
             "Quantify community diversity from a long feature table — one row per (sample, feature, count), "
-            "the shape a microbiome or OTU/ASV study naturally produces. Reach here for two questions: how "
-            "diverse is each individual sample (alpha diversity, computed as aggregates so a GROUP BY over "
-            "the sample id yields one value per sample), and how different are samples from one another "
-            "(beta diversity, computed as a between-sample distance matrix emitted in long form). The "
-            "distance matrix is the input other areas consume for ordination, group tests, and tree "
-            "building."
+            "the shape a microbiome or OTU/ASV study naturally produces. Reach here to measure how diverse "
+            "each individual sample is (alpha diversity, the full scikit-bio metric family computed as "
+            "aggregates so a GROUP BY over the sample id yields one value per sample), how different samples "
+            "are from one another (beta diversity, a between-sample distance matrix emitted in long form), "
+            "and their tree-aware counterparts (Faith's phylogenetic diversity and UniFrac, which take a "
+            "Newick tree argument). It also rarefies feature tables to a common depth. The distance matrix "
+            "is the input other areas consume for ordination, group tests, and tree building."
         ),
         "doc_md": (
             "### Community diversity\n\n"
             "From a long `(sample, feature, count)` feature table:\n\n"
-            "- **Alpha** — per-sample diversity, as aggregates you `GROUP BY sample_id`\n"
+            "- **Alpha** — per-sample diversity (the full metric family), as aggregates you "
+            "`GROUP BY sample_id`\n"
             "- **Beta** — a between-sample distance matrix, emitted long for downstream ordination, "
-            "group tests, and tree building"
+            "group tests, and tree building\n"
+            "- **Phylogenetic** — Faith's PD and UniFrac (given a Newick tree)\n"
+            "- **Preprocessing** — rarefy each sample to a common depth"
         ),
         "example_queries": json.dumps(
             [
@@ -400,19 +451,23 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
         "keywords": json.dumps(["ordination", "distance", "hypothesis test", "composition", "microbiome"]),
         "doc_llm": (
             "Multivariate analysis of distance matrices and compositional data. Reach here to embed samples "
-            "in a few interpretable dimensions from a distance matrix (principal-coordinates ordination), "
-            "to test whether a grouping or a second matrix explains the distances (permutational and "
-            "rank-based group tests, and matrix correlation), and to move compositional feature data into "
-            "ordinary real space where standard statistics apply (log-ratio transforms). Distance-matrix "
-            "inputs use the long (id_1, id_2, distance) shape that the diversity area's beta-diversity "
-            "matrix produces."
+            "in a few interpretable dimensions — either from a distance matrix (principal-coordinates "
+            "ordination) or directly from a feature table (principal components and correspondence "
+            "analysis); to test whether a grouping or a second matrix explains between-sample distances "
+            "(permutational and rank-based group tests, and matrix correlation); to move compositional "
+            "feature data into ordinary real space with log-ratio transforms and their inverses; and to "
+            "find differentially abundant features between groups (ANCOM and a Dirichlet-multinomial "
+            "t-test). Distance-matrix inputs use the long (id_1, id_2, distance) shape the diversity area's "
+            "beta-diversity matrix produces."
         ),
         "doc_md": (
             "### Multivariate statistics\n\n"
-            "Over distance matrices and compositions:\n\n"
-            "- **Ordination** — embed samples in low dimensions from a distance matrix\n"
+            "Over distance matrices, feature tables, and compositions:\n\n"
+            "- **Ordination** — embed samples in low dimensions (from a distance matrix or feature table)\n"
             "- **Hypothesis tests** — do groups or a second matrix explain the distances?\n"
-            "- **Composition** — log-ratio transforms into real space\n\n"
+            "- **Composition** — log-ratio transforms (and inverses) into real space\n"
+            "- **Differential abundance** — which features differ between groups (ANCOM, Dirichlet-"
+            "multinomial)\n\n"
             "Distance inputs use the long `(id_1, id_2, distance)` shape from the beta-diversity matrix."
         ),
         "example_queries": json.dumps(
