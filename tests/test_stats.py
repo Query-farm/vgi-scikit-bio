@@ -10,9 +10,40 @@ import pytest
 
 from vgi_scikit_bio.composition import COMPOSITION_FUNCTIONS, Ancom, Clr, DirmultTtest, Ilr
 from vgi_scikit_bio.distance_stats import Anosim, Mantel, Permanova
-from vgi_scikit_bio.ordination import Pcoa
+from vgi_scikit_bio.ordination import Ca, Pca, Pcoa
 
 _COMP = {c.Meta.name: c for c in COMPOSITION_FUNCTIONS}
+
+
+def _feature() -> pa.Table:
+    return pa.table(
+        {
+            "sample_id": ["s1", "s1", "s2", "s2", "s3", "s3"],
+            "feature_id": ["a", "b", "a", "b", "a", "b"],
+            "value": [4.0, 2.0, 1.0, 9.0, 0.0, 5.0],
+        }
+    )
+
+
+class TestFeatureOrdination:
+    def _args(self, **kw: object) -> SimpleNamespace:
+        base = {"sample": "sample_id", "feature": "feature_id", "value": "value", "n_components": 2}
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    def test_pca_scores(self) -> None:
+        out = Pca.encode(_feature(), self._args())
+        assert out["sample_id"] == ["s1", "s2", "s3"]
+        assert len(out["pc_1"]) == 3 and all(isinstance(v, float) for v in out["pc_1"])
+
+    def test_ca_scores(self) -> None:
+        out = Ca.encode(_feature(), self._args())
+        assert out["sample_id"] == ["s1", "s2", "s3"]
+        assert set(out) == {"sample_id", "ca_1", "ca_2"}
+
+    def test_pca_pads_extra_components(self) -> None:
+        out = Pca.encode(_feature(), self._args(n_components=5))
+        assert set(out) == {"sample_id", "pc_1", "pc_2", "pc_3", "pc_4", "pc_5"}
 
 
 def _square_dm() -> pa.Table:

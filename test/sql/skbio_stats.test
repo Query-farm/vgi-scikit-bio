@@ -32,6 +32,22 @@ SELECT count(*) FROM (DESCRIBE SELECT * FROM skbio.stats.pcoa((SELECT * FROM dm)
 ----
 3
 
+# PCA and CA over a long feature table -> one row per sample
+statement ok
+CREATE TEMP TABLE ft AS SELECT * FROM (VALUES
+  ('s1','a',4),('s1','b',2),('s2','a',1),('s2','b',9),('s3','a',0),('s3','b',5)
+) AS t(sample_id, feature_id, value);
+
+query I
+SELECT count(*) FROM skbio.stats.pca((SELECT * FROM ft), n_components := 2);
+----
+3
+
+query I
+SELECT count(*) FROM skbio.stats.ca((SELECT * FROM ft), n_components := 2);
+----
+3
+
 # ============================================================================
 # PERMANOVA / ANOSIM (grouping joined onto a beta-diversity matrix)
 # ============================================================================
