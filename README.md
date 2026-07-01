@@ -1,9 +1,10 @@
 # vgi-scikit-bio
 
 **[scikit-bio](https://scikit.bio) for SQL** — a [VGI](https://query.farm)
-worker that exposes biological sequence analysis, community diversity,
-ordination, distance-matrix statistics, compositional transforms, and
-phylogenetics to **DuckDB** as ordinary scalar, aggregate, and table functions.
+worker that exposes biological sequence analysis, pairwise alignment, community
+diversity (including phylogenetic), ordination, distance-matrix statistics,
+compositional transforms, and phylogenetics to **DuckDB** as ordinary scalar,
+aggregate, and table functions.
 
 ```sql
 -- Attach the worker (installed console script, or `uv run scikit_bio_worker.py`)

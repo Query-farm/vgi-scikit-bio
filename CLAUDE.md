@@ -7,7 +7,7 @@ this file is the "how it's built and where the sharp edges are" companion.
 
 A [VGI](https://github.com/query-farm/vgi-python) worker exposing
 [scikit-bio](https://scikit.bio) to DuckDB/SQL. `vgi_scikit_bio/worker.py`
-assembles every function into one `skbio` catalog (four schemas) and runs it over
+assembles every function into one `skbio` catalog (five schemas) and runs it over
 stdio (local) or HTTP (container/Fly.io). Modeled on `~/Development/vgi-scikit-learn`.
 
 ## Layout
