@@ -1,3 +1,11 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Query-farm/vgi-scikit-bio/main/assets/vgi-logo.png" alt="Vector Gateway Interface" height="92">
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/Query-farm/vgi-scikit-bio/main/assets/scikit-bio-logo.png" alt="scikit-bio" height="56">
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/Query-farm/vgi-scikit-bio/main/assets/duckdb-logo.png" alt="DuckDB" height="80">
+</p>
+
 # vgi-scikit-bio
 
 **[scikit-bio](https://scikit.bio) for SQL** — a [VGI](https://query.farm)
@@ -7,8 +15,11 @@ compositional transforms, and phylogenetics to **DuckDB** as ordinary scalar,
 aggregate, and table functions.
 
 ```sql
--- Attach the worker (installed console script, or `uv run scikit_bio_worker.py`)
-ATTACH 'skbio' (TYPE vgi, LOCATION 'vgi-scikit-bio');
+INSTALL vgi FROM community; LOAD vgi;
+
+-- Attach with zero local install — from PyPI via uvx, or from ghcr via oci://
+ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx vgi-scikit-bio');
+-- ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.1.0');
 
 SELECT skbio.sequence.gc_content('ATGCGGATTACAGG');            -- 0.5
 SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG');    -- CCTGTAATCCGCAT
@@ -39,25 +50,59 @@ DuckDB and scikit-bio, so you get scikit-bio's algorithms without leaving SQL.
 
 ## Install & attach
 
-The worker is a normal Python package that ships two console scripts:
-`vgi-scikit-bio` (stdio, spawned by DuckDB) and `vgi-scikit-bio-http` (HTTP
-server).
-
-```sh
-pip install vgi-scikit-bio          # or: uv pip install vgi-scikit-bio
-```
-
-Attach it from DuckDB (the DuckDB `vgi` community extension must be installed):
+First install the DuckDB `vgi` community extension, then attach the worker via a
+`LOCATION`. Pick whichever way suits you — **you don't have to install anything
+locally**; `uvx` and `oci://` both fetch and run the published worker for you.
 
 ```sql
 INSTALL vgi FROM community;
 LOAD vgi;
+```
 
--- stdio: DuckDB spawns the worker as a subprocess
+**Zero-install from PyPI (`uvx`)** — recommended for a laptop with `uv`:
+
+```sql
+ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx vgi-scikit-bio');
+SELECT skbio.sequence.gc_content('ATGCGGATTACAGG');   -- 0.5
+```
+
+`uvx` downloads [`vgi-scikit-bio`](https://pypi.org/project/vgi-scikit-bio/) from
+PyPI into a cache and runs its stdio console script; the first attach resolves
+the package, later ones are instant.
+
+**Container from ghcr (`oci://`)** — recommended when you'd rather not touch
+Python at all (just needs Docker or Podman):
+
+```sql
+ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.1.0');
+```
+
+The extension turns the `oci://` address into a pooled `docker run -i --rm …
+stdio` and keeps the container warm across queries. Use `:latest` to track the
+newest release, or `docker://…` (an alias). A struct `LOCATION` adds options —
+`{'image': 'oci://…', 'runtime': 'podman', 'volumes': ['skbio_state:/data']}`.
+
+**Installed console script** — if you `pip install vgi-scikit-bio`, the
+`vgi-scikit-bio` (stdio) and `vgi-scikit-bio-http` (HTTP) scripts are on `PATH`:
+
+```sql
 ATTACH 'skbio' (TYPE vgi, LOCATION 'vgi-scikit-bio');
+```
 
--- or run straight from a source checkout without installing:
+**From a source checkout** (development):
+
+```sql
 ATTACH 'skbio' (TYPE vgi, LOCATION 'uv run scikit_bio_worker.py');
+```
+
+**HTTP server** — for a warm, shared, long-lived worker, run the container (or
+`vgi-scikit-bio-http`) and attach over its URL:
+
+```sh
+docker run -d -p 8000:8000 -e VGI_SIGNING_KEY=change-me ghcr.io/query-farm/vgi-scikit-bio:0.1.0
+```
+```sql
+ATTACH 'skbio' (TYPE vgi, LOCATION 'http://localhost:8000');
 ```
 
 Functions are organised into **five schemas** — `sequence` (the default),
