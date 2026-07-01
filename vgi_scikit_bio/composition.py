@@ -34,7 +34,7 @@ from .schema_utils import field as sfield
 
 @dataclass(slots=True, frozen=True)
 class _CompArgs:
-    data: Annotated[TableInput, Arg(0, doc="A long feature table: (sample_id, feature_id, value).")]
+    data: Annotated[TableInput, Arg(0, doc="One row per (sample_id, feature_id, value).")]
     sample: Annotated[str, Arg("sample", default="", doc="Sample-id column (defaults to the first column).")]
     feature: Annotated[str, Arg("feature", default="", doc="Feature-id column (defaults to the second column).")]
     value: Annotated[str, Arg("value", default="", doc="Value column (defaults to the third column).")]

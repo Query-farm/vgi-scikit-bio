@@ -180,7 +180,7 @@ class TipCount(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        newick: Annotated[pa.StringArray, Param(doc="A Newick-format tree")],
+        newick: Annotated[pa.StringArray, Param(doc="A Newick tree")],
     ) -> Annotated[pa.Int64Array, Returns(pa.int64())]:
         """Return each tree's tip count (NULL for unparseable input)."""
         out: list[int | None] = []
@@ -229,7 +229,7 @@ class TotalBranchLength(ScalarFunction):
     @classmethod
     def compute(
         cls,
-        newick: Annotated[pa.StringArray, Param(doc="A Newick-format tree")],
+        newick: Annotated[pa.StringArray, Param(doc="A Newick tree")],
     ) -> Annotated[pa.DoubleArray, Returns(pa.float64())]:
         """Return each tree's total branch length (NULL for unparseable input)."""
         out: list[float | None] = []

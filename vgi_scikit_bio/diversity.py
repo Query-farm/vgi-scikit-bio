@@ -72,7 +72,7 @@ class _AlphaMetric(AggregateFunction[CountState]):
         cls,
         states: dict[int, CountState],
         group_ids: pa.Int64Array,
-        count: Annotated[pa.DoubleArray, Param(doc="Feature abundance count")],
+        count: Annotated[pa.DoubleArray, Param(doc="Abundance value")],
     ) -> None:
         """Accumulate this batch's non-NULL counts into each sample's state."""
         batch: dict[int, list[float]] = {}
@@ -306,7 +306,7 @@ _BETA_METRICS = {
 
 @dataclass(slots=True, frozen=True)
 class _BetaArgs:
-    data: Annotated[TableInput, Arg(0, doc="A long feature table: (sample_id, feature_id, count).")]
+    data: Annotated[TableInput, Arg(0, doc="One row per (sample_id, feature_id, count).")]
     sample: Annotated[str, Arg("sample", default="", doc="Sample-id column (defaults to the first column).")]
     feature: Annotated[str, Arg("feature", default="", doc="Feature-id column (defaults to the second column).")]
     count: Annotated[str, Arg("count", default="", doc="Abundance-count column (defaults to the third column).")]

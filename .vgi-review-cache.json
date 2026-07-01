@@ -1,0 +1,578 @@
+{
+  "0d81ef77b60b5d1c": {
+    "object": "skbio",
+    "kind": "catalog",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the core data-shape convention once at the catalog level (feature tables and distance matrices are both long), since nearly every function depends on it and an agent reading only the catalog blurb won't infer it.",
+      "Name the schema namespaces explicitly (skbio.sequence / diversity / stats / tree) so an agent can map a task to a schema without expanding each one.",
+      "Mention the input domains supported (DNA/RNA/protein sequences; long feature tables; long distance matrices) so an agent can decide relevance before drilling in."
+    ],
+    "summary": "Accurate, well-scoped catalog blurb; would benefit from surfacing the long-format data convention and schema names up front."
+  },
+  "b92903797dd71fbf": {
+    "object": "skbio.diversity",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Note that alpha counts are rounded to integers and NULLs skipped (a real caveat that lives on the individual aggregates but matters when choosing this schema).",
+      "State beta_diversity's default metric (braycurtis) and that it emits a full square matrix including the zero diagonal, so downstream grouping/ordination expectations are clear.",
+      "The doc_llm references `skbio.stats.pcoa`/`permanova` but the schema is `skbio.stats` \u2014 keep the qualified names consistent to avoid an agent constructing a wrong function path."
+    ],
+    "summary": "Strong, accurate schema summary listing all seven alpha metrics and the beta table function; minor caveat/units gaps."
+  },
+  "b7370fd52e170969": {
+    "object": "skbio.sequence",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "hamming_distance is described as 'pairwise' \u2014 clarify it's a two-column scalar over equal-length sequences (and what happens on length mismatch) so an agent knows it's not an all-pairs matrix.",
+      "translate omits the genetic-code/frame and stop-codon behavior; a one-clause note would let an agent use it correctly without opening the function.",
+      "Spell out that composition table functions return long `(sequence, token, count)` rows (as diversity does), rather than a wide token matrix, since output shape drives query construction."
+    ],
+    "summary": "Accurate and complete function inventory; a few per-function semantics (hamming shape, translate frame) are under-specified for direct use."
+  },
+  "a450d7070f2d592a": {
+    "object": "skbio.stats",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "The grouped tests (permanova/anosim) need a 4th `group` column and mantel needs two distance columns \u2014 flag these differing input shapes here so an agent picks the right query layout before drilling in.",
+      "Note that pcoa/clr/ilr are table functions with fixed-at-bind output width (e.g. pcoa n_components) versus the single-row permanova/anosim/mantel test outputs.",
+      "Mention distance inputs are symmetrized and zero-diagonal-filled from the long form, so an agent can safely pass a triangle or a full square."
+    ],
+    "summary": "Accurate multivariate-stats summary; the divergent input shapes across permanova/anosim/mantel deserve a schema-level callout."
+  },
+  "2333d951bd529b37": {
+    "object": "skbio.tree",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State that neighbor_joining is a table function consuming the long `(id_1, id_2, distance)` matrix and returns a single Newick string, versus the two scalars that take Newick per row \u2014 the shape contrast is the key selection cue.",
+      "Note the tree is unrooted and that NJ requires a complete distance matrix (as beta_diversity's full-square output provides).",
+      "Add units for total_branch_length (sum of branch lengths in the tree's distance units) so an agent interprets the scalar correctly."
+    ],
+    "summary": "Accurate and concise; would gain from stating input/output shapes and the unrooted/complete-matrix caveats."
+  },
+  "c364315ca6bf0bfa": {
+    "object": "skbio.diversity.beta_diversity",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "The metric list ends with '...'; enumerate the full supported set (also chebyshev, correlation, sqeuclidean) or state that unsupported metrics raise at bind, so an agent doesn't guess an invalid name.",
+      "Clarify that counts for duplicate (sample, feature) rows are summed, not overwritten, since the long input may contain repeats.",
+      "Note that id_1/id_2 are emitted as VARCHAR (sample ids stringified) even when the source ids are integers, which affects downstream joins for permanova grouping."
+    ],
+    "summary": "Excellent, thorough docs matching the code \u2014 full-square long output, defaults, pivoting, and downstream hookup all covered."
+  },
+  "b5d694b9290c57e3": {
+    "object": "skbio.diversity.shannon",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State the units/base explicitly (nats, natural log) and typical range so an agent can sanity-check or convert to log2 bits if needed.",
+      "Note the behavior for a single-feature or empty sample (returns 0 / NULL) so agents handle edge cases.",
+      "The declared param type is DOUBLE but counts are rounded to integers internally \u2014 mention that fractional abundances are rounded, not truncated, to avoid surprise."
+    ],
+    "summary": "Accurate, complete aggregate doc with clear GROUP BY guidance and integer-rounding/NULL caveats."
+  },
+  "e67edbafb3ca73e6": {
+    "object": "skbio.diversity.dominance",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Explicitly relate dominance = 1 \u2212 simpson (and inv_simpson = 1/dominance) so an agent can choose among the related metrics without computing it.",
+      "Note the single-feature edge case yields dominance 1 (max), the informative boundary of the [0,1] range.",
+      "As with shannon, flag that the DOUBLE count input is rounded to integers, since dominance is defined on abundances."
+    ],
+    "summary": "Accurate and complete; range, interpretation, and Simpson relationship are all clearly stated."
+  },
+  "00e5406883bde524": {
+    "object": "skbio.diversity.simpson",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State behavior for degenerate groups (single feature or all-NULL/empty group) \u2014 does it return 0, NULL, or error?",
+      "Cross-reference inv_simpson (= 1/(1-simpson)) so an agent can pick the right dominance-family metric.",
+      "Sharpen the parameter doc: 'Abundance value' \u2192 'one feature's count within the grouped sample'; only the multiset of counts matters, not feature identity."
+    ],
+    "summary": "Accurate and clear Simpson doc; add edge-case behavior and a metric cross-reference."
+  },
+  "692c79ba521c445d": {
+    "object": "skbio.diversity.observed_features",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Clarify that zero counts (not just NULLs) are excluded from richness, since the long table may carry explicit 0 cells.",
+      "Note that integer rounding is irrelevant here (richness ignores magnitude) so agents don't worry about count scaling.",
+      "Mention this is the unadjusted baseline that chao1 corrects, to guide metric selection."
+    ],
+    "summary": "Correct richness doc; spell out zero-count handling and its relation to chao1."
+  },
+  "7101373d0c60e2d3": {
+    "object": "skbio.diversity.chao1",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Document the no-singletons/doubletons case (chao1 collapses toward observed richness) so agents interpret unexpectedly low estimates.",
+      "State that non-integer inputs are rounded before singleton/doubleton counting, which can change the estimate \u2014 warn against pre-normalized/relative abundances.",
+      "Note the output can be non-integer (a DOUBLE estimate) and is >= observed_features."
+    ],
+    "summary": "Solid chao1 doc; add degenerate-case behavior and the rounding caveat for relative abundances."
+  },
+  "00fdf5132cf93272": {
+    "object": "skbio.diversity.inv_simpson",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Give the output range [1, richness] \u2014 unlike the other metrics its doc omits bounds.",
+      "State the exact relationship inv_simpson = 1/(1-simpson) so agents don't compute both redundantly.",
+      "Note the 'effective number of features' interpretation makes it comparable across samples of differing richness, unlike raw simpson."
+    ],
+    "summary": "Accurate inverse-Simpson doc; add its numeric range and explicit tie to simpson."
+  },
+  "211e4410f680f785": {
+    "object": "skbio.diversity.pielou_evenness",
+    "kind": "aggregate",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Document the single-feature edge case where the normalizer log(richness)=0 (evenness is undefined \u2014 clarify whether it returns NULL/NaN).",
+      "Note it is unitless and independent of Shannon's log base since the base cancels in normalization.",
+      "Mention pairing with observed_features/Shannon since evenness alone doesn't convey richness."
+    ],
+    "summary": "Clear Pielou doc; add the undefined single-feature case and log-base independence."
+  },
+  "fb0bbf1e6ce72731": {
+    "object": "skbio.sequence.residue_frequencies",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Give the `residue` column type (single-character VARCHAR) and state that row/residue ordering is unspecified.",
+      "Document handling of invalid/lowercase/gap characters and NULL sequences \u2014 are those rows skipped, error, or counted?",
+      "Clarify the emitted `id` column's type and that it mirrors the input id column (only present when id := is supplied)."
+    ],
+    "summary": "Good long-format residue-count doc; specify residue type, ordering, and invalid-input handling."
+  },
+  "b3ec16d72d94ec73": {
+    "object": "skbio.sequence.kmer_frequencies",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State behavior when k exceeds a sequence's length (no k-mers \u2192 no rows) and require k >= 1.",
+      "Clarify 'overlapping' with a concrete count example (e.g. 'AA' in 'AAA' = 2) and give the `kmer` column type.",
+      "Note that pivoting to a wide feature matrix yields a sparse/ragged vocabulary across sequences (missing k-mers = 0), which the caller must fill."
+    ],
+    "summary": "Strong k-mer doc; add k-vs-length edge case, an overlap example, and pivot sparsity note."
+  },
+  "b15c3b32678ad15c": {
+    "object": "skbio.sequence.gc_content",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State the empty/all-gap sequence case (0/0 denominator) \u2014 does it return NULL or 0?",
+      "Clarify whether IUPAC degenerate bases (S, N, etc.) count toward GC or invalidate the sequence to NULL.",
+      "Note it is DNA-only (not RNA) so agents don't pass RNA and silently get NULL."
+    ],
+    "summary": "Excellent, precise GC-content doc; only edge cases (empty seq, degenerate bases, RNA) remain."
+  },
+  "62f084f239cbe61d": {
+    "object": "skbio.sequence.reverse_complement",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State that the output VARCHAR has the same length as the input (a useful invariant for agents building alignments).",
+      "The parameter `seq` description ('A DNA sequence') is thinner than the doc_llm; note case-insensitivity and NULL/non-DNA\u2192NULL there too so agents reading only param metadata get it.",
+      "Clarify how mixed-case/whitespace is normalized in the returned string (uppercased? stripped?) since doc says whitespace is ignored on input but not what the output casing is."
+    ],
+    "summary": "Accurate and agent-friendly; only missing the length-preservation invariant and richer param-level docs."
+  },
+  "566011c9e518c4ef": {
+    "object": "skbio.sequence.transcribe",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "The example `'ATGCGGATTACAGG'` has no T-run edge case beyond single Ts; add an all-uppercase and a lowercase example to demonstrate the case-insensitivity claim.",
+      "Note whether RNA input (already containing U) is accepted or treated as non-DNA\u2192NULL, since users may chain from other RNA-producing steps.",
+      "Enrich the `seq` parameter description to mention the T\u2192U rule and NULL behavior, matching the doc bodies."
+    ],
+    "summary": "Clear and correct DNA\u2192RNA doc; edge-case handling of existing-U/RNA input is unspecified."
+  },
+  "fe380bb0eafe6d9a": {
+    "object": "skbio.sequence.hamming_distance",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Spell out that comparison is position-wise and case-insensitive but NOT gap-aware (gaps count as ordinary characters), so agents don't assume alignment semantics.",
+      "Confirm the zero-length edge case: what does comparing two empty strings return (0.0 or NULL)?",
+      "In the `seq2` param, note that a length mismatch yields NULL rather than an error, mirroring the doc_llm."
+    ],
+    "summary": "Excellent: units, range, NULL/length rules, and the raw-count conversion are all covered."
+  },
+  "14dc6bcb91d32adc": {
+    "object": "skbio.sequence.is_valid_dna",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Explicitly note that the empty string and whitespace-only strings \u2014 state whether these are valid (true) or false, since predicates are often applied to dirty data.",
+      "Pair the doc with `is_valid_protein`'s caveat: mention that a valid-DNA string is also valid protein, so this predicate is the correct one for DNA-specific gating.",
+      "List or link the exact accepted character set (including which gap chars: `-` and/or `.`) so agents can predict results without trial."
+    ],
+    "summary": "Accurate predicate doc; empty-string behavior and the exact gap-character set are left implicit."
+  },
+  "c3966c5daad1c340": {
+    "object": "skbio.sequence.is_valid_protein",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Great DNA-overlap caveat in doc_llm \u2014 also surface it in doc_md, which omits it.",
+      "State whether stop `*` and selenocysteine/pyrrolysine (U/O) are accepted, since these appear in real protein data and affect validity.",
+      "Clarify empty-string and gap-character handling explicitly, as for is_valid_dna."
+    ],
+    "summary": "Strong, with a valuable DNA/protein-overlap note; ambiguity around `*`/U/O and empty input remains."
+  },
+  "7e3ecaba1786adfa": {
+    "object": "skbio.sequence.complement",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 5,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Add a one-line note that biological convention rarely uses the un-reversed complement, steering agents to reverse_complement unless they specifically want same-order \u2014 the cross-reference is present but the 'when to use this' framing could be sharper.",
+      "State length preservation (output length == input length).",
+      "Enrich the `seq` param description to mention case-insensitivity and NULL/non-DNA behavior."
+    ],
+    "summary": "Precise and well-contrasted against reverse_complement; only lacks a 'when would you want this' nudge."
+  },
+  "6d749c38476bad2a": {
+    "object": "skbio.sequence.translate",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "State that only reading frame +1 (from base 0) is supported and there is no frame/strand argument, so agents needing other frames must offset the input themselves.",
+      "Clarify whether translation stops at the first stop codon or emits `*` and continues through the whole sequence (the example `'ATGCGGATTACAGGT'` doesn't hit a stop, so behavior is unillustrated) \u2014 add an example containing a stop codon.",
+      "Note the genetic-code table is fixed (NCBI table 1) with no code-selection parameter, and that input is DNA not RNA (contrast with transcribe)."
+    ],
+    "summary": "Accurate standard-code translation; single-frame limitation and stop-codon continuation behavior deserve an explicit example."
+  },
+  "25cf466d36e01533": {
+    "object": "skbio.stats.permanova",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "doc_md lists a `method` output column but doc_llm omits it \u2014 reconcile so the full output schema (method, test_statistic, p_value, sample_size, number_of_groups, permutations) is stated identically in both.",
+      "The `permutations` parameter description omits its default (999) that appears in the prose; put the default in the param metadata too, and note p_value resolution is bounded by 1/(permutations+1).",
+      "Call out the critical constraint from the design notes: every sample must appear as `id_1` (full-square beta_diversity guarantees this; a condensed triangle leaves the last sample ungrouped and errors) \u2014 agents building the input need this to avoid failures."
+    ],
+    "summary": "Thorough test doc with a good worked example; output-schema mismatch between docs and the id_1-coverage constraint should be surfaced."
+  },
+  "9276180d7246566f": {
+    "object": "skbio.stats.pcoa",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the axis cap: PCoA cannot return more axes than samples, so requesting n_components > sample_count NULL-pads the extra pc_k columns \u2014 an agent parsing pc_3 as always-numeric will otherwise break.",
+      "Note that the input must cover a full/symmetric distance matrix (the diagonal is zero-filled and pairs symmetrized), and mention the minimum of ~3 samples.",
+      "Add that pc_k values have arbitrary sign/orientation (eigenvector direction is not fixed) so cross-run signs may flip, and clarify each pc_i is a DOUBLE."
+    ],
+    "summary": "Accurate and clear, but omits the sample-count axis cap and NULL-padding behavior an agent needs."
+  },
+  "81e6aa2d81d3f825": {
+    "object": "skbio.stats.mantel",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Document the minimum-size / degenerate-input behavior (Mantel needs \u22653 ids; too few permutations or identical matrices affect the p-value) so agents don't feed 2-pair inputs.",
+      "Clarify that distance_x and distance_y must be aligned on the SAME id pairs and that both are symmetrized/zero-diagonal-filled like other distance inputs.",
+      "Note the p_value is one-sided by default and give the type of each output (correlation/p_value DOUBLE, n/permutations BIGINT); parameter_types ordering also puts BIGINT out of sync with the listed permutations param."
+    ],
+    "summary": "Solid coverage of columns and methods; missing alignment/minimum-size caveats and p-value tail direction."
+  },
+  "039fc6ef70571901": {
+    "object": "skbio.stats.ilr",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 4,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Warn that ILR `component` indices are basis-dependent and NOT individually interpretable or comparable to feature ids \u2014 unlike CLR \u2014 so agents shouldn't map component\u2192feature.",
+      "State the D\u22652 minimum (a 1-feature sample yields zero components) and that missing (sample,feature) cells are treated as 0 before the transform.",
+      "Explain the interaction of pseudocount with zeros vs. the 'values must be positive' rule (without a pseudocount, any zero/negative errors), and that `value` is declared VARCHAR but must be numeric."
+    ],
+    "summary": "Correctly distinguishes ILR from CLR but lacks the key caveat that components are uninterpretable basis coordinates."
+  },
+  "b9200b3e722449fb": {
+    "object": "skbio.stats.clr",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Add the defining property that CLR values sum to zero per sample (singular covariance) \u2014 the reason ILR exists \u2014 so agents know not to use CLR output where full rank is required.",
+      "Note that features absent for a sample (sparse long input) are zero-filled and thus require a pseudocount, and that the output is one row per (sample, feature) present after pivoting.",
+      "Clarify `value` is typed VARCHAR but must parse as a positive number, and specify the output `clr` column is DOUBLE."
+    ],
+    "summary": "Accurate and clear; would benefit from the sum-to-zero caveat and explicit zero-fill/pseudocount interaction."
+  },
+  "0b09c633825616bf": {
+    "object": "skbio.stats.anosim",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "State the hard requirement that EVERY sample must appear as id_1 (a full-square beta_diversity matrix guarantees this; a condensed triangle leaves the last sample ungrouped and errors) \u2014 the single most likely failure mode.",
+      "Note that `group` must be consistent per id_1 across its rows and that \u22652 groups are required, plus the effect of very small groups on the R/p-value.",
+      "Give output column types (test_statistic/p_value DOUBLE, sample_size/number_of_groups/permutations BIGINT) and note R<0 is possible (within > between)."
+    ],
+    "summary": "Statistically clear with a good example, but omits the every-sample-as-id_1 constraint that governs valid input."
+  },
+  "d9a9c9777663c26c": {
+    "object": "skbio.tree.neighbor_joining",
+    "kind": "table_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Warn that NJ can produce negative branch lengths and requires \u22653 taxa; also that the tree is unrooted so the returned Newick has an arbitrary root placement.",
+      "Note the input must be a full/symmetric distance matrix (diagonal zero-filled) and that duplicate/inconsistent id pairs are symmetrized.",
+      "Mention how tip labels map to id_1/id_2 values so agents can reliably join tip_count/total_branch_length results back to samples."
+    ],
+    "summary": "Clear and accurate, but should flag negative branch lengths, the \u22653-taxon minimum, and unrooted-root arbitrariness."
+  },
+  "d5e155e88cad0289": {
+    "object": "skbio.tree.tip_count",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 5
+    },
+    "suggestions": [
+      "Add a one-line note on what counts as a tip (leaf/taxon labels, not internal nodes) for trees with named internal nodes.",
+      "State that the actual output column is named `result` (scalar convention) so agents alias it when needed.",
+      "Optionally note behavior on a single-node/empty Newick (e.g. '();') to remove ambiguity."
+    ],
+    "summary": "Concise, accurate, and well-suited to agents; only minor edge-case notes missing."
+  },
+  "0318cc086b6a7e1f": {
+    "object": "skbio.tree.total_branch_length",
+    "kind": "scalar_function",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Soften/qualify the Faith's PD claim: it only equals Faith's PD for a rooted tree spanning a single sample's present features \u2014 for a neighbor_joining beta-diversity tree it is simply total edge weight, which could mislead an agent into misusing it.",
+      "Note that NJ trees may contain negative branch lengths, so the sum can be less than a naive expectation or even negative.",
+      "State the output column is named `result` (DOUBLE) and that unit is whatever the input distances/branch lengths are in."
+    ],
+    "summary": "Clear and mostly accurate, but the Faith's PD equivalence is overstated for general (e.g. NJ) trees."
+  },
+  "69d5d3246375af44": {
+    "object": "skbio.diversity",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Name the concrete alpha metrics available (shannon, simpson, inv_simpson, observed_features, chao1, pielou_evenness, dominance) so an agent can pick one without opening the function list.",
+      "State beta_diversity's output columns (id_1, id_2, distance), its default metric (Bray-Curtis), and that it emits a full square where every sample appears as id_1 \u2014 the property group tests downstream depend on.",
+      "Note the input caveat that alpha metrics operate on integer abundances (counts are rounded), which affects chao1 and richness-style results."
+    ],
+    "summary": "Accurate and well-shaped, but omits the concrete metric names and the beta output-column/units contract an agent needs."
+  },
+  "61bcd75d751985a7": {
+    "object": "skbio.sequence",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 4,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "\"compare reads to a reference\" overstates hamming_distance, which is a position-by-position count over two equal-length sequences (no alignment); reword to \"Hamming distance between two equal-length sequences\" and note the equal-length requirement.",
+      "Clarify that k-mer/residue composition are table functions over a long (id, sequence) input (buffering) while the rest are row-wise scalars returning a single `result` column \u2014 the two shapes are used very differently.",
+      "Spell out what 'validate' returns (boolean is_valid_dna/is_valid_protein) and that transcribe/translate assume DNA input, so an agent doesn't guess the alphabet direction."
+    ],
+    "summary": "Clear and mostly accurate; the 'compare to a reference' phrasing misrepresents the equal-length pairwise Hamming function."
+  },
+  "43c7a8e75d420e91": {
+    "object": "skbio.stats",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 3,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Surface that the three hypothesis tests do NOT all take the same input: permanova/anosim need a 4th grouping column (id_1, id_2, distance, group) built by joining a grouping table onto beta_diversity, while mantel takes two distance columns (id_1, id_2, distance_x, distance_y) \u2014 the single biggest usage gotcha here.",
+      "Distinguish clr vs ilr and note they consume a long (sample, feature, value) feature table (not a distance matrix), pivoted internally with missing cells = 0 \u2014 the shape contrast with ordination/tests is easy to miss.",
+      "Mention pcoa's n_components arg and that it cannot return more axes than samples (extra requested columns are NULL-padded)."
+    ],
+    "summary": "Accurate at a high level but hides that permanova/anosim/mantel and clr/ilr each require different input shapes \u2014 critical for an agent building the query."
+  },
+  "9fb612df26390504": {
+    "object": "skbio.tree",
+    "kind": "schema",
+    "scores": {
+      "accuracy": 5,
+      "clarity": 5,
+      "completeness": 4,
+      "audience_fit": 4
+    },
+    "suggestions": [
+      "Note that neighbor_joining is a table function returning a single Newick string (one row/one value), whereas tip_count/total_branch_length are row-wise scalars over a Newick VARCHAR column \u2014 the call syntax differs.",
+      "State that total_branch_length is in the same distance units as the input matrix, and whether malformed Newick degrades to NULL or errors, so an agent knows the failure mode.",
+      "Add one worked example of the full chain (beta_diversity \u2192 neighbor_joining) since the doc already asserts the input comes from beta-diversity."
+    ],
+    "summary": "Accurate and appropriately scoped; would benefit from the scalar-vs-table call distinction and branch-length units."
+  }
+}

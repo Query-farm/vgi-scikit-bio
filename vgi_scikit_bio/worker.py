@@ -142,67 +142,187 @@ _CATALOG_TAGS = {
     ),
     "vgi.executable_examples": _CATALOG_EXECUTABLE_EXAMPLES,
     # Analyst tasks for `vgi-lint simulate` — natural-language prompts an agent
-    # should be able to satisfy using this worker, each with a reference query.
+    # should satisfy using this worker. Each pins the exact output column
+    # name(s) and supplies any data inline, so the analyst must run a query and
+    # its result set is deterministically comparable to the reference query.
     "vgi.agent_test_tasks": json.dumps(
         [
             {
                 "name": "gc_content",
-                "prompt": "What is the GC content of the DNA sequence ATGCGGATTACAGG?",
-                "reference_sql": "SELECT skbio.sequence.gc_content('ATGCGGATTACAGG')",
+                "prompt": (
+                    "Compute the GC content of the DNA sequence 'ATGCGGATTACAGG'. "
+                    "Return a single row with one column named gc."
+                ),
+                "reference_sql": "SELECT skbio.sequence.gc_content('ATGCGGATTACAGG') AS gc",
             },
             {
                 "name": "reverse_complement",
-                "prompt": "Give the reverse complement of the DNA sequence ATGCGGATTACAGG.",
-                "reference_sql": "SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG')",
+                "prompt": (
+                    "Return the reverse complement of the DNA sequence 'ATGCGGATTACAGG' "
+                    "as a single row with one column named rc."
+                ),
+                "reference_sql": "SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG') AS rc",
+            },
+            {
+                "name": "translate",
+                "prompt": (
+                    "Translate the DNA sequence 'ATGCGGATTACAGGT' to its amino-acid sequence using the "
+                    "standard genetic code. Return a single row with one column named protein."
+                ),
+                "reference_sql": "SELECT skbio.sequence.translate('ATGCGGATTACAGGT') AS protein",
+            },
+            {
+                "name": "kmer_count",
+                "prompt": (
+                    "For the DNA read 'ATGCGGATTACAGG', how many distinct overlapping 3-mers occur? "
+                    "Return a single row with one column named n."
+                ),
+                "reference_sql": (
+                    "SELECT count(*) AS n FROM skbio.sequence.kmer_frequencies("
+                    "(SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG')) AS r(id, seq)), id := 'id', k := 3)"
+                ),
             },
             {
                 "name": "alpha_diversity",
                 "prompt": (
-                    "Given a long feature table of (sample_id, feature_id, count), compute the Shannon "
-                    "alpha diversity of each sample."
+                    "Here is a long feature table with columns (sample_id, feature_id, count): "
+                    "(1,'a',4), (1,'b',2), (2,'a',1), (2,'b',9). For each sample, compute its Shannon "
+                    "alpha diversity rounded to 4 decimal places. Return columns sample_id and shannon, "
+                    "ordered by sample_id."
                 ),
                 "reference_sql": (
-                    "SELECT sample_id, skbio.diversity.shannon(count) FROM "
+                    "SELECT sample_id, round(skbio.diversity.shannon(count), 4) AS shannon FROM "
                     "(VALUES (1,'a',4),(1,'b',2),(2,'a',1),(2,'b',9)) AS t(sample_id, feature_id, count) "
-                    "GROUP BY sample_id"
+                    "GROUP BY sample_id ORDER BY sample_id"
                 ),
             },
             {
-                "name": "beta_diversity_ordination",
+                "name": "observed_richness",
                 "prompt": (
-                    "From a long (sample_id, feature_id, count) table, compute a Bray-Curtis distance "
-                    "matrix and embed the samples in two dimensions with PCoA."
+                    "Given the feature counts (1,'a',4), (1,'b',0), (1,'c',3) as (sample_id, feature_id, "
+                    "count) for sample 1, how many features are observed (have a non-zero count)? Return a "
+                    "single row with one integer column named richness."
                 ),
                 "reference_sql": (
-                    "SELECT * FROM skbio.stats.pcoa((SELECT * FROM skbio.diversity.beta_diversity((SELECT * FROM "
-                    "(VALUES ('s1','a',4),('s1','b',1),('s2','a',3),('s2','b',2),('s3','a',0),('s3','b',9)) "
-                    "AS t(sample_id, feature_id, count)))), n_components := 2)"
+                    "SELECT skbio.diversity.observed_features(count)::BIGINT AS richness FROM "
+                    "(VALUES (1,'a',4),(1,'b',0),(1,'c',3)) AS t(sample_id, feature_id, count)"
                 ),
+            },
+            {
+                "name": "beta_matrix_size",
+                "prompt": (
+                    "From the feature table (s1,'a',4), (s1,'b',1), (s2,'a',3), (s2,'b',2), (s3,'a',0), "
+                    "(s3,'b',9) as (sample_id, feature_id, count), build the Bray-Curtis between-sample "
+                    "distance matrix. How many rows does the full matrix have? Return a single row with "
+                    "one column named n."
+                ),
+                "reference_sql": (
+                    "SELECT count(*) AS n FROM skbio.diversity.beta_diversity((SELECT * FROM "
+                    "(VALUES ('s1','a',4),('s1','b',1),('s2','a',3),('s2','b',2),('s3','a',0),('s3','b',9)) "
+                    "AS t(sample_id, feature_id, count)))"
+                ),
+            },
+            {
+                "name": "tree_tip_count",
+                "prompt": (
+                    "How many tips (leaves) are in the Newick tree '((a:2,b:3):3,d:4,c:4);'? "
+                    "Return a single row with one column named tips."
+                ),
+                "reference_sql": "SELECT skbio.tree.tip_count('((a:2,b:3):3,d:4,c:4);') AS tips",
             },
         ]
     ),
 }
 
-# Per-schema metadata. Each schema carries its own description/title/keywords and
-# a runnable, schema-qualified example query (VGI112/113/124/126/506).
+# Per-schema category registries (VGI413/408/409/410/411/412). Each schema
+# declares an ordered list of {name, description} sections; every function is
+# assigned to one via `_FUNCTION_CATEGORY` below. Categories drive the worker's
+# navigation and listing sections.
+_SCHEMA_CATEGORIES: dict[str, list[dict[str, str]]] = {
+    "sequence": [
+        {
+            "name": "transforms",
+            "description": "Derive a new sequence from a DNA input (complement, transcribe, translate).",
+        },
+        {"name": "validation", "description": "Check whether a string is a valid sequence of a given type."},
+        {"name": "distance", "description": "Compare two sequences position by position."},
+        {"name": "composition", "description": "Break a sequence into per-token counts (k-mers, residues)."},
+    ],
+    "diversity": [
+        {"name": "alpha", "description": "Per-sample diversity of one community, as aggregates."},
+        {"name": "beta", "description": "Between-sample community distances, as a matrix."},
+    ],
+    "stats": [
+        {"name": "ordination", "description": "Embed samples in a low-dimensional space from a distance matrix."},
+        {"name": "hypothesis-tests", "description": "Test associations and correlations over distance matrices."},
+        {"name": "composition", "description": "Log-ratio transforms that move compositional data into real space."},
+    ],
+    "tree": [
+        {"name": "construction", "description": "Build a phylogenetic tree from a distance matrix."},
+        {"name": "inspection", "description": "Read properties of a tree given as a Newick string."},
+    ],
+}
+
+# Function machine-name -> its schema category name (VGI411: every categorizable
+# object in a schema that declares categories carries a vgi.category).
+_FUNCTION_CATEGORY: dict[str, str] = {
+    # sequence
+    "gc_content": "transforms",
+    "reverse_complement": "transforms",
+    "complement": "transforms",
+    "transcribe": "transforms",
+    "translate": "transforms",
+    "is_valid_dna": "validation",
+    "is_valid_protein": "validation",
+    "hamming_distance": "distance",
+    "kmer_frequencies": "composition",
+    "residue_frequencies": "composition",
+    # diversity
+    "shannon": "alpha",
+    "simpson": "alpha",
+    "inv_simpson": "alpha",
+    "observed_features": "alpha",
+    "chao1": "alpha",
+    "pielou_evenness": "alpha",
+    "dominance": "alpha",
+    "beta_diversity": "beta",
+    # stats
+    "pcoa": "ordination",
+    "permanova": "hypothesis-tests",
+    "anosim": "hypothesis-tests",
+    "mantel": "hypothesis-tests",
+    "clr": "composition",
+    "ilr": "composition",
+    # tree
+    "neighbor_joining": "construction",
+    "tip_count": "inspection",
+    "total_branch_length": "inspection",
+}
+
+# Per-schema metadata. Each schema carries a concept-focused description (VGI173:
+# describe what the area is for, not an inventory of its objects), a descriptive
+# display title (VGI124/125), keywords, and a runnable example query.
 _SCHEMA_META: dict[str, dict[str, str]] = {
     "sequence": {
-        "comment": "Nucleotide/protein sequence functions plus k-mer and residue composition.",
-        "title": "Sequence",
+        "comment": "Analyze DNA, RNA, and protein sequences held in VARCHAR columns.",
+        "title": "Biological Sequences",
         "keywords": json.dumps(["sequence", "dna", "rna", "protein", "kmer"]),
         "doc_llm": (
-            "Per-sequence functions over VARCHAR sequence columns: scalar transforms (`gc_content`, "
-            "`reverse_complement`, `complement`, `transcribe`, `translate`), validation (`is_valid_dna`, "
-            "`is_valid_protein`), pairwise `hamming_distance`, and composition table functions "
-            "(`kmer_frequencies`, `residue_frequencies`) that emit long token-count matrices. DNA, RNA, "
-            "and protein are all supported; malformed rows yield NULL rather than failing the query."
+            "Analyze biological sequences — DNA, RNA, or protein — stored one per row in ordinary VARCHAR "
+            "columns. Reach for this area to derive new sequences (base complementation, transcription, "
+            "codon translation), measure composition (GC fraction, k-mer and single-residue profiles as "
+            "long token-count tables), compare reads to a reference, or validate that a string really is a "
+            "sequence of a given alphabet. Inputs are case-insensitive and whitespace-tolerant; a NULL or "
+            "malformed sequence yields NULL rather than failing the query, so the functions are safe over "
+            "messy real-world reads."
         ),
         "doc_md": (
-            "### Sequence\n\n"
-            "Analyze biological sequences directly in SQL:\n\n"
-            "- **Transforms** — `gc_content`, `reverse_complement`, `complement`, `transcribe`, `translate`\n"
-            "- **Validate** — `is_valid_dna`, `is_valid_protein`; **compare** — `hamming_distance`\n"
-            "- **Composition** — `kmer_frequencies`, `residue_frequencies` (long token-count matrices)"
+            "### Biological sequences\n\n"
+            "Work with DNA, RNA, and protein sequences directly in SQL — one sequence per VARCHAR cell.\n\n"
+            "- **Derive** new sequences (complementation, transcription, codon translation)\n"
+            "- **Measure** composition (GC fraction, k-mer and residue profiles)\n"
+            "- **Compare** reads and **validate** alphabets\n\n"
+            "Case-insensitive; malformed or NULL input degrades to NULL instead of erroring."
         ),
         "example_queries": json.dumps(
             [
@@ -214,22 +334,24 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
         ),
     },
     "diversity": {
-        "comment": "Alpha-diversity aggregates and beta-diversity distance matrices.",
-        "title": "Diversity",
+        "comment": "Community-ecology diversity from a long (sample, feature, count) table.",
+        "title": "Community Diversity",
         "keywords": json.dumps(["diversity", "alpha", "beta", "ecology", "microbiome"]),
         "doc_llm": (
-            "Community-ecology diversity over a long `(sample, feature, count)` table: alpha-diversity "
-            "aggregates (`shannon`, `simpson`, `inv_simpson`, `observed_features`, `chao1`, "
-            "`pielou_evenness`, `dominance`) that give one value per sample under `GROUP BY`, and the "
-            "`beta_diversity` table function that emits the between-sample distance matrix long, ready for "
-            "`skbio.stats.pcoa`/`permanova`."
+            "Quantify community diversity from a long feature table — one row per (sample, feature, count), "
+            "the shape a microbiome or OTU/ASV study naturally produces. Reach here for two questions: how "
+            "diverse is each individual sample (alpha diversity, computed as aggregates so a GROUP BY over "
+            "the sample id yields one value per sample), and how different are samples from one another "
+            "(beta diversity, computed as a between-sample distance matrix emitted in long form). The "
+            "distance matrix is the input other areas consume for ordination, group tests, and tree "
+            "building."
         ),
         "doc_md": (
-            "### Diversity\n\n"
-            "Community diversity from a long `(sample, feature, count)` table:\n\n"
-            "- **Alpha** (aggregates, `GROUP BY sample`) — `shannon`, `simpson`, `inv_simpson`, "
-            "`observed_features`, `chao1`, `pielou_evenness`, `dominance`\n"
-            "- **Beta** — `beta_diversity` emits the distance matrix long for `pcoa` / `permanova`"
+            "### Community diversity\n\n"
+            "From a long `(sample, feature, count)` feature table:\n\n"
+            "- **Alpha** — per-sample diversity, as aggregates you `GROUP BY sample_id`\n"
+            "- **Beta** — a between-sample distance matrix, emitted long for downstream ordination, "
+            "group tests, and tree building"
         ),
         "example_queries": json.dumps(
             [
@@ -245,23 +367,25 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
         ),
     },
     "stats": {
-        "comment": "Ordination (PCoA), distance-matrix tests, and compositional transforms.",
-        "title": "Stats",
-        "keywords": json.dumps(["ordination", "pcoa", "permanova", "mantel", "composition"]),
+        "comment": "Ordination, distance-matrix hypothesis tests, and compositional transforms.",
+        "title": "Multivariate Statistics",
+        "keywords": json.dumps(["ordination", "distance", "hypothesis test", "composition", "microbiome"]),
         "doc_llm": (
-            "Multivariate statistics over distance matrices and compositions: `pcoa` embeds samples from a "
-            "distance matrix; `permanova`/`anosim` test whether a grouping explains between-sample "
-            "distances; `mantel` correlates two distance matrices; and `clr`/`ilr` are log-ratio "
-            "transforms of compositional feature tables. Distance-matrix inputs use the long "
-            "`(id_1, id_2, distance)` shape produced by `skbio.diversity.beta_diversity`."
+            "Multivariate analysis of distance matrices and compositional data. Reach here to embed samples "
+            "in a few interpretable dimensions from a distance matrix (principal-coordinates ordination), "
+            "to test whether a grouping or a second matrix explains the distances (permutational and "
+            "rank-based group tests, and matrix correlation), and to move compositional feature data into "
+            "ordinary real space where standard statistics apply (log-ratio transforms). Distance-matrix "
+            "inputs use the long (id_1, id_2, distance) shape that the diversity area's beta-diversity "
+            "matrix produces."
         ),
         "doc_md": (
-            "### Stats\n\n"
-            "Multivariate analysis over distance matrices and compositions:\n\n"
-            "- **Ordination** — `pcoa` (principal coordinates)\n"
-            "- **Distance tests** — `permanova`, `anosim`, `mantel`\n"
-            "- **Composition** — `clr`, `ilr` log-ratio transforms\n\n"
-            "Distance inputs use the long `(id_1, id_2, distance)` shape from `beta_diversity`."
+            "### Multivariate statistics\n\n"
+            "Over distance matrices and compositions:\n\n"
+            "- **Ordination** — embed samples in low dimensions from a distance matrix\n"
+            "- **Hypothesis tests** — do groups or a second matrix explain the distances?\n"
+            "- **Composition** — log-ratio transforms into real space\n\n"
+            "Distance inputs use the long `(id_1, id_2, distance)` shape from the beta-diversity matrix."
         ),
         "example_queries": json.dumps(
             [
@@ -278,20 +402,22 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
         ),
     },
     "tree": {
-        "comment": "Neighbour-joining tree construction and Newick inspection.",
-        "title": "Tree",
-        "keywords": json.dumps(["tree", "phylogenetics", "newick", "neighbor joining", "distance"]),
+        "comment": "Build phylogenetic trees from distances and inspect Newick strings.",
+        "title": "Phylogenetics",
+        "keywords": json.dumps(["tree", "phylogenetics", "newick", "distance", "microbiome"]),
         "doc_llm": (
-            "Phylogenetics: `neighbor_joining` builds an unrooted tree from a long distance matrix and "
-            "returns it as a Newick string, while the `tip_count` and `total_branch_length` scalars "
-            "inspect Newick strings stored per row. Pairs naturally with `skbio.diversity.beta_diversity` "
-            "as the distance source."
+            "Build and inspect phylogenetic trees. Reach here to reconstruct an unrooted tree from a long "
+            "distance matrix (returned as a Newick string), and to read properties of trees stored per row "
+            "— how many tips they have, or their total branch length — with scalar functions over a Newick "
+            "column. The distance-matrix input is the long (id_1, id_2, distance) shape produced by the "
+            "diversity area's beta-diversity matrix."
         ),
         "doc_md": (
-            "### Tree\n\n"
-            "Build and inspect phylogenetic trees:\n\n"
-            "- **Construct** — `neighbor_joining` (distance matrix → Newick)\n"
-            "- **Inspect** — `tip_count`, `total_branch_length` (scalars over Newick strings)"
+            "### Phylogenetics\n\n"
+            "Build and inspect trees:\n\n"
+            "- **Construct** an unrooted tree from a distance matrix, returned as a Newick string\n"
+            "- **Inspect** Newick strings stored per row (tip counts, total branch length)\n\n"
+            "Distance input uses the long `(id_1, id_2, distance)` shape from the beta-diversity matrix."
         ),
         "example_queries": json.dumps(
             [
@@ -305,18 +431,16 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
 }
 
 
-def _humanize(name: str) -> str:
-    """Title-case a snake_case function name for a display title."""
-    return name.replace("_", " ").title()
-
-
 def _apply_discovery_tags(functions: list[type]) -> None:
     """Inject the per-function discovery tags the catalog-quality linter expects.
 
-    ``vgi.title`` and ``vgi.keywords`` (a JSON array of strings) are derived
-    mechanically from each function's existing Meta (display name, categories).
-    The richer ``vgi.doc_llm`` / ``vgi.doc_md`` tags are authored per function in
-    the implementation modules and are left untouched here.
+    ``vgi.keywords`` (a JSON array of strings) is derived mechanically from each
+    function's existing Meta (display name, categories); ``vgi.category`` assigns
+    the function to one of its schema's declared category sections (see
+    ``_FUNCTION_CATEGORY``). The richer ``vgi.doc_llm`` / ``vgi.doc_md`` tags are
+    authored per function in the implementation modules and left untouched here.
+    A per-function ``vgi.title`` is deliberately not set: a mechanical title would
+    just restate the machine name, and only the catalog and schemas need one.
     """
     for fn in functions:
         meta = getattr(fn, "Meta", None)
@@ -325,9 +449,10 @@ def _apply_discovery_tags(functions: list[type]) -> None:
         name = getattr(meta, "name", fn.__name__)
         cats = list(getattr(meta, "categories", []) or [])
         tags = dict(getattr(meta, "tags", {}) or {})
-        tags.setdefault("vgi.title", _humanize(name))
         keywords = list(dict.fromkeys(cats or name.split("_")))
         tags.setdefault("vgi.keywords", json.dumps(keywords))
+        if name in _FUNCTION_CATEGORY:
+            tags.setdefault("vgi.category", _FUNCTION_CATEGORY[name])
         meta.tags = tags
 
 
@@ -335,7 +460,7 @@ _apply_discovery_tags(_FUNCTIONS)
 
 
 def _build_schema(name: str, functions: list[type]) -> Schema:
-    """Build a ``Schema`` from its function list and the ``_SCHEMA_META`` entry."""
+    """Build a ``Schema`` from its function list, ``_SCHEMA_META``, and its categories."""
     meta = _SCHEMA_META[name]
     return Schema(
         name=name,
@@ -348,6 +473,7 @@ def _build_schema(name: str, functions: list[type]) -> Schema:
             "vgi.doc_llm": meta["doc_llm"],
             "vgi.doc_md": meta["doc_md"],
             "vgi.example_queries": meta["example_queries"],
+            "vgi.categories": json.dumps(_SCHEMA_CATEGORIES[name]),
         },
         functions=functions,
     )
