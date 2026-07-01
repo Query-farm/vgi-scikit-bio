@@ -1,0 +1,56 @@
+# name: test/sql/skbio_alignment.test
+# description: Pairwise sequence alignment scores and aligned-string table functions
+# group: [vgi_scikit_bio]
+
+require-env VGI_SCIKIT_BIO_WORKER
+
+require vgi
+
+statement ok
+ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
+
+# ============================================================================
+# Score scalars
+# ============================================================================
+
+query I
+SELECT skbio.alignment.align_score_nucleotide('ACTGGT', 'ACTGT');
+----
+2.0
+
+# identical sequences score higher than mismatched ones
+query I
+SELECT skbio.alignment.align_score_nucleotide('ACGTACGT', 'ACGTACGT')
+     > skbio.alignment.align_score_nucleotide('ACGTACGT', 'TTTTTTTT');
+----
+true
+
+# NULL / invalid input -> NULL
+query II
+SELECT skbio.alignment.align_score_nucleotide('ACGT', NULL) IS NULL,
+       skbio.alignment.align_score_protein('MRIT', 'MRT') IS NOT NULL;
+----
+true	true
+
+# ============================================================================
+# Alignment table function (aligned strings + score)
+# ============================================================================
+
+statement ok
+CREATE TEMP VIEW pairs AS SELECT * FROM (VALUES (1, 'ACTGGT', 'ACTGT')) AS p(id, ref, read);
+
+query III
+SELECT aligned_1, aligned_2, score
+FROM skbio.alignment.pairwise_align_nucleotide((SELECT * FROM pairs), id := 'id', seq1 := 'ref', seq2 := 'read');
+----
+ACTGGT	ACTGT-	2.0
+
+# local alignment returns the best-matching sub-region
+query I
+SELECT length <= 6 FROM skbio.alignment.pairwise_align_nucleotide(
+  (SELECT * FROM pairs), id := 'id', seq1 := 'ref', seq2 := 'read', mode := 'local');
+----
+true
+
+statement ok
+DETACH skbio;

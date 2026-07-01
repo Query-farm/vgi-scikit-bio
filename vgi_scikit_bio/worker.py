@@ -24,6 +24,7 @@ from vgi.catalog import Catalog, ReadOnlyCatalogInterface, Schema
 from vgi.catalog.catalog_interface import CatalogAttachResult, CatalogInfo
 
 from vgi_scikit_bio import __version__
+from vgi_scikit_bio.alignment import ALIGNMENT_FUNCTIONS
 from vgi_scikit_bio.composition import COMPOSITION_FUNCTIONS
 from vgi_scikit_bio.distance_stats import DISTANCE_STATS_FUNCTIONS
 from vgi_scikit_bio.diversity import DIVERSITY_FUNCTIONS
@@ -54,6 +55,7 @@ GIT_COMMIT = os.environ.get("VGI_SCIKIT_BIO_GIT_COMMIT") or "unknown"
 _DEFAULT_SCHEMA = "sequence"
 _SCHEMA_FUNCTIONS: dict[str, list[type]] = {
     "sequence": [*SEQUENCE_FUNCTIONS, *KMER_FUNCTIONS],
+    "alignment": [*ALIGNMENT_FUNCTIONS],
     "diversity": [*DIVERSITY_FUNCTIONS],
     "stats": [*ORDINATION_FUNCTIONS, *DISTANCE_STATS_FUNCTIONS, *COMPOSITION_FUNCTIONS],
     "tree": [*TREE_FUNCTIONS],
@@ -248,6 +250,10 @@ _SCHEMA_CATEGORIES: dict[str, list[dict[str, str]]] = {
         {"name": "distance", "description": "Compare two sequences position by position."},
         {"name": "composition", "description": "Break a sequence into per-token counts (k-mers, residues)."},
     ],
+    "alignment": [
+        {"name": "score", "description": "Optimal alignment score between two sequences."},
+        {"name": "pairwise", "description": "Aligned sequence pair (aligned strings + score)."},
+    ],
     "diversity": [
         {"name": "alpha", "description": "Per-sample diversity of one community, as aggregates."},
         {"name": "beta", "description": "Between-sample community distances, as a matrix."},
@@ -323,6 +329,33 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
                 {
                     "description": "GC content of a DNA sequence",
                     "sql": "SELECT skbio.sequence.gc_content('ATGCGGATTACAGG')",
+                }
+            ]
+        ),
+    },
+    "alignment": {
+        "comment": "Pairwise sequence alignment: scores and aligned strings.",
+        "title": "Sequence Alignment",
+        "keywords": json.dumps(["alignment", "pairwise", "needleman-wunsch", "smith-waterman", "dna"]),
+        "doc_llm": (
+            "Pairwise alignment of biological sequences. Reach here to score how similar two DNA or protein "
+            "sequences are (optimal global-alignment score, per row) or to produce the actual alignment — "
+            "the two sequences padded with gaps plus the score and aligned length — in global "
+            "(Needleman-Wunsch) or local (Smith-Waterman) mode. Sequences are plain VARCHAR columns; a NULL "
+            "or unparseable pair yields NULL rather than failing the query."
+        ),
+        "doc_md": (
+            "### Sequence alignment\n\n"
+            "Align pairs of DNA or protein sequences:\n\n"
+            "- **Score** — optimal global-alignment score per row (a similarity measure)\n"
+            "- **Pairwise** — the aligned strings (gaps as `-`) plus score and length, global or local\n\n"
+            "Inputs are plain `VARCHAR` columns; malformed pairs degrade to NULL."
+        ),
+        "example_queries": json.dumps(
+            [
+                {
+                    "description": "Global alignment score of two DNA sequences",
+                    "sql": "SELECT skbio.alignment.align_score_nucleotide('ACTGGT', 'ACTGT')",
                 }
             ]
         ),
