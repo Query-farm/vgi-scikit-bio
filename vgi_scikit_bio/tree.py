@@ -26,8 +26,8 @@ from vgi_rpc.rpc import OutputCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
 from .distance_utils import distance_matrix_from_long, resolve_pair_columns
-from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
+from .schema_utils import result_columns_schema
 
 
 def _read_tree(newick: str) -> Any:
@@ -107,15 +107,16 @@ class _TreeBuilder(SinkBuffer[_BuildArgs, DrainState]):
         return {"newick": [str(cls.BUILDER(dm)).strip()]}
 
 
-def _make_builder(name: str, builder: Any, blurb: str) -> type:
+def _make_builder(name: str, builder: Any, blurb: str, example_doc: str) -> type:
     """Generate a distance-matrix tree-builder class."""
     example = FunctionExample(
         sql=(
-            f"SELECT newick FROM skbio.tree.{name}((SELECT * FROM "
+            f"SELECT newick, skbio.tree.tip_count(newick) AS tips FROM skbio.tree.{name}("
+            "(SELECT * FROM "
             "(VALUES ('a','b',5),('a','c',9),('a','d',9),('b','c',10),('b','d',10),('c','d',8)) "
             "AS d(id_1, id_2, distance)))"
         ),
-        description=f"{name} tree of a 4-taxon distance matrix",
+        description=example_doc,
     )
     meta = type(
         "Meta",
@@ -128,7 +129,9 @@ def _make_builder(name: str, builder: Any, blurb: str) -> type:
             "examples": [example],
             "tags": {
                 "vgi.category": "construction",
-                "vgi.result_columns_md": columns_md_rows([("newick", "VARCHAR", "The tree in Newick format.")]),
+                "vgi.result_columns_schema": result_columns_schema(
+                    [("newick", "VARCHAR", "The tree in Newick format.")]
+                ),
                 "vgi.doc_llm": (
                     f"Table function building a phylogenetic tree from a long distance matrix and returning "
                     f"it as a single-row Newick string. {blurb} The table arg is "
@@ -164,24 +167,38 @@ _BUILDER_FUNCTIONS: list[type] = [
         "nj",
         "Neighbour joining reconstructs an unrooted tree whose pairwise path lengths approximate the input "
         "distances — the standard distance-based method.",
+        "Turn a pairwise distance matrix into an actual tree, then check it round-tripped by "
+        "counting its tips. Neighbour joining is the default choice when the distances come "
+        "from real data and no molecular clock can be assumed; feed it a beta_diversity matrix "
+        "to get a sample dendrogram straight out of SQL.",
     ),
     _make_builder(
         "upgma",
         "upgma",
         "UPGMA builds a rooted, ultrametric tree by repeatedly joining the closest clusters (average "
         "linkage); it assumes a molecular clock.",
+        "Build a rooted, ultrametric tree — every tip ends up equidistant from the root, so "
+        "tree_height is the same for all of them. Reach for UPGMA when you want a clustering "
+        "dendrogram to cut at a threshold, and for neighbor_joining when you want a phylogeny.",
     ),
     _make_builder(
         "gme",
         "gme",
         "Greedy minimum evolution builds an unrooted tree by greedily minimising total tree length — fast "
         "for large matrices.",
+        "Build a minimum-evolution tree greedily, which is the one to reach for when the matrix "
+        "is large enough that neighbour joining's cubic cost hurts. On a small matrix like this "
+        "one it agrees with the others; the tip count confirms no taxa were dropped.",
     ),
     _make_builder(
         "bme",
         "bme",
         "Balanced minimum evolution builds an unrooted tree minimising a balanced tree-length criterion "
         "(the objective FastME optimises).",
+        "Build the balanced-minimum-evolution tree (the criterion FastME optimises), which is "
+        "usually more accurate than greedy ME at a similar cost. Compare its output against "
+        "neighbor_joining with robinson_foulds to see whether the method choice changed the "
+        "topology at all.",
     ),
 ]
 
@@ -202,8 +219,12 @@ class TipCount(ScalarFunction):
         categories = ["tree", "phylogenetics"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.tree.tip_count('((a:2,b:3):3,d:4,c:4);')",
-                description="Count the tips of an inline Newick tree",
+                sql="SELECT skbio.tree.tip_count('((a:2,b:3):3,d:4,c:4);') AS tips",
+                description=(
+                    "Size a tree without leaving SQL — the quickest sanity check that a builder "
+                    "kept every taxon, and the denominator for anything you normalise per tip. "
+                    "Point it at a column of Newick strings to profile a whole table of trees."
+                ),
             )
         ]
         tags = {
@@ -250,8 +271,13 @@ class TotalBranchLength(ScalarFunction):
         categories = ["tree", "phylogenetics"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.tree.total_branch_length('((a:2,b:3):3,d:4,c:4);')",
-                description="Total branch length of an inline Newick tree",
+                sql="SELECT skbio.tree.total_branch_length('((a:2,b:3):3,d:4,c:4);') AS branch_length",
+                description=(
+                    "Measure how much evolutionary change a tree encodes in total. Over a tree "
+                    "pruned to one sample's features this is exactly Faith's PD, which makes it "
+                    "the way to compute phylogenetic diversity when you already hold the subtree "
+                    "rather than a feature table."
+                ),
             )
         ]
         tags = {
@@ -300,8 +326,12 @@ class TreeHeight(ScalarFunction):
         categories = ["tree", "phylogenetics"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.tree.tree_height('((a:2,b:3):3,d:4,c:4);')",
-                description="Height (deepest tip) of an inline Newick tree",
+                sql="SELECT skbio.tree.tree_height('((a:2,b:3):3,d:4,c:4);') AS height",
+                description=(
+                    "Read the deepest root-to-tip distance, i.e. how far back the tree reaches. "
+                    "On an ultrametric tree (anything from upgma) every tip sits at this height, "
+                    "so comparing it with a tip's own depth is a quick test of ultrametricity."
+                ),
             )
         ]
         tags = {
@@ -369,8 +399,13 @@ class RobinsonFoulds(ScalarFunction):
         categories = ["tree", "phylogenetics"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.tree.robinson_foulds('((a,b),(c,d));', '((a,c),(b,d));')",
-                description="Topological distance between two tree shapes",
+                sql=("SELECT skbio.tree.robinson_foulds('((a,b),(c,d));', '((a,c),(b,d));') AS rf_distance"),
+                description=(
+                    "Ask whether two trees group the same taxa together, ignoring branch lengths "
+                    "entirely: these two disagree on whether a pairs with b or with c, so the "
+                    "distance is non-zero. This is the standard way to check whether two "
+                    "reconstruction methods, or two bootstrap replicates, found the same shape."
+                ),
             )
         ]
         tags = {
@@ -413,9 +448,14 @@ class WeightedRobinsonFoulds(ScalarFunction):
             FunctionExample(
                 sql=(
                     "SELECT skbio.tree.weighted_robinson_foulds("
-                    "'((a:1,b:1):1,(c:1,d:1):1);', '((a:1,c:1):1,(b:1,d:1):1);')"
+                    "'((a:1,b:1):1,(c:1,d:1):1);', '((a:1,c:1):1,(b:1,d:1):1);') AS wrf_distance"
                 ),
-                description="Branch-length-aware tree distance",
+                description=(
+                    "Compare two trees on topology *and* branch lengths, so a pair that groups "
+                    "taxa identically but stretches a branch still scores non-zero. Use this "
+                    "rather than robinson_foulds when the lengths carry meaning — divergence "
+                    "times, substitution rates — and not just the grouping."
+                ),
             )
         ]
         tags = {
@@ -457,9 +497,15 @@ class CopheneticDistance(ScalarFunction):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT skbio.tree.cophenetic_distance('((a:1,b:1):1,(c:1,d:1):1);', '((a:1,c:1):5,(b:1,d:1):5);')"
+                    "SELECT skbio.tree.cophenetic_distance("
+                    "'((a:1,b:1):1,(c:1,d:1):1);', '((a:1,c:1):5,(b:1,d:1):5);') AS cophenetic_distance"
                 ),
-                description="Cophenetic distance between two trees",
+                description=(
+                    "Compare two trees by the tip-to-tip distances they imply, rather than by "
+                    "their splits. It answers the question that actually matters downstream — do "
+                    "these trees place the taxa at the same distances from each other? — and so "
+                    "reacts to the long branches in the second tree that robinson_foulds ignores."
+                ),
             )
         ]
         tags = {

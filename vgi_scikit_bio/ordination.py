@@ -27,8 +27,32 @@ from vgi_rpc.rpc import OutputCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
 from .distance_utils import distance_matrix_from_long, resolve_pair_columns
-from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
+from .schema_utils import result_dynamic_columns_md
+
+
+def _axis_result_cols(prefix: str, axis_doc: str) -> str:
+    """Result-schema variants for an ordination whose width follows ``n_components``.
+
+    The output is ``(sample_id, <prefix>_1 .. <prefix>_k)`` where ``k`` is
+    ``n_components :=`` (default 3), so the schema is argument-dependent: one
+    variant per commonly-requested width rather than a single static schema.
+    """
+    sample = ("sample_id", "VARCHAR", "Sample id.")
+    return result_dynamic_columns_md(
+        [
+            (
+                f"`n_components := {k}`",
+                [sample] + [(f"{prefix}_{i}", "DOUBLE", axis_doc.format(i=i)) for i in range(1, k + 1)],
+            )
+            for k in (2, 3)
+        ],
+        note=(
+            f"The pattern generalises: `n_components := k` returns `sample_id` plus `{prefix}_1` "
+            f"through `{prefix}_{{k}}` (default `k` = 3). Axes beyond what the data can support "
+            "are returned as NULL."
+        ),
+    )
 
 
 @dataclass(slots=True, frozen=True)
@@ -54,20 +78,23 @@ class Pcoa(SinkBuffer[_PcoaArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.pcoa((SELECT * FROM "
+                    "SELECT sample_id, round(pc_1, 4) AS pc_1, round(pc_2, 4) AS pc_2 FROM "
+                    "skbio.stats.pcoa((SELECT * FROM "
                     "(VALUES ('a','a',0.0),('a','b',0.5),('a','c',0.7),('b','a',0.5),('b','b',0.0),"
                     "('b','c',0.6),('c','a',0.7),('c','b',0.6),('c','c',0.0)) AS d(id_1, id_2, distance)), "
-                    "n_components := 2)"
+                    "n_components := 2) ORDER BY pc_1"
                 ),
-                description="2-axis PCoA of a 3-sample distance matrix",
+                description=(
+                    "Collapse a 3-sample distance matrix into two plottable coordinates and order "
+                    "the samples along the leading axis. Rounding keeps the output readable; "
+                    "sorting by pc_1 reads off the dominant gradient — which samples sit at the "
+                    "extremes of the largest source of variation."
+                ),
             )
         ]
         tags = {
-            "vgi.result_columns_md": columns_md_rows(
-                [
-                    ("sample_id", "VARCHAR", "Sample id."),
-                    ("pc_1", "DOUBLE", "Coordinate on the first principal axis (further axes follow)."),
-                ]
+            "vgi.result_dynamic_columns_md": _axis_result_cols(
+                "pc", "Coordinate on principal axis {i} (axes are ordered by variance explained)."
             ),
             "vgi.doc_llm": (
                 "Table function running Principal Coordinates Analysis (classical MDS) on a long distance "
@@ -286,20 +313,22 @@ class Pca(_FeatureOrdination):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.pca((SELECT * FROM "
+                    "SELECT sample_id, round(pc_1, 4) AS pc_1, round(pc_2, 4) AS pc_2 FROM "
+                    "skbio.stats.pca((SELECT * FROM "
                     "(VALUES ('s1','a',4),('s1','b',2),('s2','a',1),('s2','b',9),('s3','a',0),('s3','b',5)) "
-                    "AS t(sample_id, feature_id, value)), n_components := 2)"
+                    "AS t(sample_id, feature_id, value)), n_components := 2) ORDER BY pc_1"
                 ),
-                description="2-component PCA of a feature table",
+                description=(
+                    "Score three samples on the two leading principal components straight from a "
+                    "long feature table — no distance matrix needed, unlike pcoa. Ordering by "
+                    "pc_1 shows which samples the dominant feature gradient separates."
+                ),
             )
         ]
         tags = {
             "vgi.category": "ordination",
-            "vgi.result_columns_md": columns_md_rows(
-                [
-                    ("sample_id", "VARCHAR", "Sample id."),
-                    ("pc_1", "DOUBLE", "Score on the first principal component (further axes follow)."),
-                ]
+            "vgi.result_dynamic_columns_md": _axis_result_cols(
+                "pc", "Score on principal component {i} (components are ordered by variance explained)."
             ),
             "vgi.doc_llm": (
                 "Table function running Principal Components Analysis on a long feature table and returning "
@@ -343,20 +372,23 @@ class Ca(_FeatureOrdination):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.ca((SELECT * FROM "
+                    "SELECT sample_id, round(ca_1, 4) AS ca_1, round(ca_2, 4) AS ca_2 FROM "
+                    "skbio.stats.ca((SELECT * FROM "
                     "(VALUES ('s1','a',4),('s1','b',2),('s2','a',1),('s2','b',9),('s3','a',3),('s3','b',5)) "
-                    "AS t(sample_id, feature_id, value)), n_components := 2)"
+                    "AS t(sample_id, feature_id, value)), n_components := 2) ORDER BY ca_1"
                 ),
-                description="2-axis correspondence analysis of a count table",
+                description=(
+                    "Ordinate a count table with correspondence analysis, the chi-square "
+                    "counterpart of PCA for abundance data. Sorting by ca_1 orders the samples "
+                    "along the strongest compositional gradient, which is what the axis means "
+                    "for count data."
+                ),
             )
         ]
         tags = {
             "vgi.category": "ordination",
-            "vgi.result_columns_md": columns_md_rows(
-                [
-                    ("sample_id", "VARCHAR", "Sample id."),
-                    ("ca_1", "DOUBLE", "Score on the first correspondence axis (further axes follow)."),
-                ]
+            "vgi.result_dynamic_columns_md": _axis_result_cols(
+                "ca", "Score on correspondence axis {i} (axes are ordered by inertia explained)."
             ),
             "vgi.doc_llm": (
                 "Table function running Correspondence Analysis on a long feature count table and returning "

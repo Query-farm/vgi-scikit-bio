@@ -28,8 +28,8 @@ from vgi.table_function import BindParams
 from vgi_rpc.rpc import OutputCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
-from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
+from .schema_utils import result_columns_schema
 
 
 @dataclass(slots=True, frozen=True)
@@ -41,6 +41,16 @@ class _CompArgs:
     pseudocount: Annotated[
         float, Arg("pseudocount", default=0.0, doc="Added to every value before the transform (to handle zeros).")
     ]
+
+
+# The shared two-sample, three-part feature table every compositional example
+# transforms. s1 and s2 differ in total (6 vs 15) but the transforms only see
+# their relative parts -- which is the point these examples are there to make.
+_COMP_INPUT = (
+    "(SELECT * FROM "
+    "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6)) "
+    "AS t(sample_id, feature_id, value))"
+)
 
 
 def _resolve_triple(schema: pa.Schema, sample: str, feature: str, value: str) -> tuple[str, str, str]:
@@ -87,15 +97,19 @@ class Clr(SinkBuffer[_CompArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.clr((SELECT * FROM "
-                    "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6)) "
-                    "AS t(sample_id, feature_id, value)))"
+                    "SELECT sample_id, feature_id, round(clr, 4) AS clr "
+                    f"FROM skbio.stats.clr({_COMP_INPUT}) ORDER BY sample_id, feature_id"
                 ),
-                description="CLR-transform two 3-part compositions",
+                description=(
+                    "Move a feature table out of the simplex and into real space, where ordinary "
+                    "statistics (correlation, regression, distance) are meaningful again. A "
+                    "negative clr value means the feature is below its sample's geometric mean, "
+                    "positive above — the sign, not the raw count, is what carries the signal."
+                ),
             )
         ]
         tags = {
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("sample_id", "VARCHAR", "Sample id."),
                     ("feature_id", "VARCHAR", "Feature id."),
@@ -195,15 +209,19 @@ class Ilr(SinkBuffer[_CompArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.ilr((SELECT * FROM "
-                    "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6)) "
-                    "AS t(sample_id, feature_id, value)))"
+                    "SELECT sample_id, component, round(value, 4) AS value "
+                    f"FROM skbio.stats.ilr({_COMP_INPUT}) ORDER BY sample_id, component"
                 ),
-                description="ILR-transform two 3-part compositions (2 components each)",
+                description=(
+                    "Turn 3-part compositions into 2 orthonormal coordinates — note the count "
+                    "drops from D to D-1, which is the point: unlike clr, the ilr coordinates are "
+                    "not linearly dependent, so a covariance matrix built from them is invertible "
+                    "and methods like PCA or LDA behave."
+                ),
             )
         ]
         tags = {
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("sample_id", "VARCHAR", "Sample id."),
                     ("component", "BIGINT", "ILR component index (1..D-1)."),
@@ -300,7 +318,7 @@ def _comp_doc(name: str, blurb: str, cols: list[tuple[str, str, str]]) -> dict[s
     """Build the tags for a compositional function returning a long table."""
     return {
         "vgi.category": "composition",
-        "vgi.result_columns_md": columns_md_rows(cols),
+        "vgi.result_columns_schema": result_columns_schema(cols),
         "vgi.doc_llm": (
             f"Table function applying the **{name}** compositional operation to a long feature table "
             f"`(SELECT sample_id, feature_id, value FROM ...)` (columns default to positional 1/2/3; "
@@ -314,16 +332,25 @@ def _comp_doc(name: str, blurb: str, cols: list[tuple[str, str, str]]) -> dict[s
     }
 
 
-def _comp_example(name: str) -> list[FunctionExample]:
-    """Standard two-sample, three-part example for a compositional table function."""
+def _comp_example(name: str, key_col: str, out_col: str, description: str) -> list[FunctionExample]:
+    """One projected, ordered example for a compositional table function.
+
+    Args:
+        name: The function's machine name (``skbio.stats.<name>``).
+        key_col: The second output column (``feature_id`` or the index column).
+        out_col: The value column the transform emits.
+        description: What the example teaches -- not a restatement of the SQL.
+
+    Returns:
+        A one-entry example list for the function's ``Meta.examples``.
+    """
     return [
         FunctionExample(
             sql=(
-                f"SELECT * FROM skbio.stats.{name}((SELECT * FROM "
-                "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6)) "
-                "AS t(sample_id, feature_id, value)))"
+                f"SELECT sample_id, {key_col}, round({out_col}, 4) AS {out_col} "
+                f"FROM skbio.stats.{name}({_COMP_INPUT}) ORDER BY sample_id, {key_col}"
             ),
-            description=f"{name} of two 3-part compositions",
+            description=description,
         )
     ]
 
@@ -385,7 +412,11 @@ class _SameShape(SinkBuffer[_CompArgs, DrainState]):
         """Transform each sample and return the long-format columns."""
         s_col, f_col, v_col = _resolve_triple(table.schema, args.sample, args.feature, args.value)
         sample_ids, feature_ids, matrix = _pivot(table, s_col, f_col, v_col, args.pseudocount)
-        transformed = np.asarray(cls._apply(matrix, args), dtype=np.float64)
+        # atleast_2d: several scikit-bio composition transforms (power,
+        # multi_replace) squeeze a single-sample (1, D) matrix down to (D,), which
+        # would make the [i, j] indexing below raise IndexError on a one-sample
+        # input. Restore the (samples, features) shape before indexing.
+        transformed = np.atleast_2d(np.asarray(cls._apply(matrix, args), dtype=np.float64))
         s_out: list[str] = []
         f_out: list[str] = []
         v_out: list[float | None] = []
@@ -398,7 +429,7 @@ class _SameShape(SinkBuffer[_CompArgs, DrainState]):
         return {"sample_id": s_out, "feature_id": f_out, cls.OUT_COL: v_out}
 
 
-def _make_same_shape(name: str, transform: Any, blurb: str, out_col: str) -> type:
+def _make_same_shape(name: str, transform: Any, blurb: str, out_col: str, example_doc: str) -> type:
     """Generate a same-shape compositional transform class."""
     cols = [
         ("sample_id", "VARCHAR", "Sample id."),
@@ -413,7 +444,7 @@ def _make_same_shape(name: str, transform: Any, blurb: str, out_col: str) -> typ
             "name": name,
             "description": f"{name} compositional transform of a long feature table",
             "categories": ["stats", "composition"],
-            "examples": _comp_example(name),
+            "examples": _comp_example(name, "feature_id", out_col, example_doc),
             "tags": _comp_doc(name, blurb, cols),
         },
     )
@@ -459,12 +490,19 @@ _SAME_SHAPE_FUNCTIONS: list[type] = [
         _closure,
         "It rescales each sample's parts to sum to 1 (proportions) — the closure operation.",
         "proportion",
+        "Normalise two samples with different totals (6 and 15 counts) onto a common scale, so "
+        "their proportions can be compared directly. Closure is the first step of essentially "
+        "every compositional workflow, and running it alone shows what the later transforms "
+        "silently assume about their input.",
     ),
     _make_same_shape(
         "centralize",
         _centralize,
         "It centres each sample's composition around the dataset's geometric mean (perturbation to the centre).",
         "centered",
+        "Re-express each sample relative to the dataset's average composition rather than its own "
+        "total: values above 1 are features enriched compared with the typical sample, below 1 "
+        "depleted. This is the compositional equivalent of subtracting the mean before plotting.",
     ),
     _make_same_shape(
         "rclr",
@@ -472,12 +510,18 @@ _SAME_SHAPE_FUNCTIONS: list[type] = [
         "It is the robust centred log-ratio: like CLR but it leaves zeros out of the geometric mean, so a "
         "pseudocount is usually unnecessary (leave `pseudocount :=` at 0).",
         "rclr",
+        "Take log-ratios of a feature table without inventing a pseudocount: rclr excludes zeros "
+        "from each sample's geometric mean instead of offsetting them. Reach for this rather than "
+        "clr whenever the table is sparse, as microbiome count tables almost always are.",
     ),
     _make_same_shape(
         "multi_replace",
         _multi_replace,
         "It replaces zeros with small positive values by multiplicative replacement, preserving each sample's ratios.",
         "value",
+        "Fill in zeros with small positive values while holding every non-zero ratio fixed — the "
+        "principled alternative to adding an arbitrary pseudocount. Run this before clr, ilr, or "
+        "alr, all of which are undefined at zero.",
     ),
 ]
 
@@ -514,10 +558,15 @@ class Power(_SameShape):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.power((SELECT * FROM "
-                    "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3)) AS t(sample_id, feature_id, value)), power := 2.0)"
+                    "SELECT sample_id, feature_id, round(value, 4) AS value FROM skbio.stats.power("
+                    f"{_COMP_INPUT}, power := 2.0) ORDER BY sample_id, feature_id"
                 ),
-                description="Square each part of a composition (compositional power)",
+                description=(
+                    "Sharpen a composition by squaring every part and re-closing it: the dominant "
+                    "features gain share and the rare ones lose it, while the result still sums "
+                    "to 1. An exponent below 1 does the opposite (flattens), which is how "
+                    "compositional data is up- or down-weighted without leaving the simplex."
+                ),
             )
         ]
         tags = _comp_doc(
@@ -641,11 +690,15 @@ class Alr(_Indexed):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.alr((SELECT * FROM "
-                    "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6)) "
-                    "AS t(sample_id, feature_id, value)))"
+                    "SELECT sample_id, component, round(value, 4) AS value "
+                    f"FROM skbio.stats.alr({_COMP_INPUT}) ORDER BY sample_id, component"
                 ),
-                description="ALR-transform two 3-part compositions (2 components each)",
+                description=(
+                    "Express every part as a log-ratio against one chosen reference feature "
+                    "(here the first by sorted order, via the default ref_idx := 0). Use alr "
+                    "rather than clr or ilr when a genuine reference exists — a spike-in, a "
+                    "housekeeping gene — because then the coordinates stay directly interpretable."
+                ),
             )
         ]
         tags = _comp_doc(
@@ -660,7 +713,7 @@ class Alr(_Indexed):
         )
 
 
-def _make_inverse(name: str, fn_name: str, blurb: str, ref: bool) -> type:
+def _make_inverse(name: str, fn_name: str, blurb: str, ref: bool, example_doc: str) -> type:
     """Generate an inverse-transform class (clr_inv / ilr_inv / alr_inv)."""
 
     def _apply(cls: type, matrix: Any, args: Any) -> Any:
@@ -680,11 +733,12 @@ def _make_inverse(name: str, fn_name: str, blurb: str, ref: bool) -> type:
             "examples": [
                 FunctionExample(
                     sql=(
-                        f"SELECT * FROM skbio.stats.{name}((SELECT * FROM "
+                        "SELECT sample_id, feature, round(value, 6) AS value FROM "
+                        f"skbio.stats.{name}((SELECT * FROM "
                         "(VALUES ('s1',1,0.1),('s1',2,-0.2),('s2',1,0.3),('s2',2,-0.1)) "
-                        "AS t(sample_id, coordinate, value)))"
+                        "AS t(sample_id, coordinate, value))) ORDER BY sample_id, feature"
                     ),
-                    description=f"{name} back to a composition",
+                    description=example_doc,
                 )
             ],
             "tags": _comp_doc(
@@ -719,18 +773,33 @@ _INVERSE_FUNCTIONS: list[type] = [
         "clr_inv",
         "It inverts a centred log-ratio back to a composition (softmax of the CLR coordinates).",
         ref=False,
+        example_doc=(
+            "Map log-ratio coordinates back to readable proportions that sum to 1 per sample. "
+            "This is the step that makes a model fitted in clr space reportable: predictions come "
+            "out as log-ratios, and stakeholders want percentages."
+        ),
     ),
     _make_inverse(
         "ilr_inv",
         "ilr_inv",
         "It inverts D-1 isometric log-ratio coordinates back to a D-part composition.",
         ref=False,
+        example_doc=(
+            "Rebuild a full composition from its D-1 isometric coordinates — note that 2 input "
+            "coordinates come back as 3 parts. Pair it with ilr to round-trip: transform, model "
+            "or perturb in real space, then invert to get proportions again."
+        ),
     ),
     _make_inverse(
         "alr_inv",
         "alr_inv",
         "It inverts D-1 additive log-ratio coordinates back to a D-part composition.",
         ref=True,
+        example_doc=(
+            "Recover the proportions behind D-1 additive log-ratios, restoring the reference part "
+            "that alr divided everything by. Use the same ref_idx := you transformed with, or the "
+            "parts come back permuted."
+        ),
     ),
 ]
 
@@ -754,16 +823,23 @@ class PairwiseVlr(SinkBuffer[_CompArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.pairwise_vlr((SELECT * FROM "
+                    "SELECT feature_1, feature_2, round(vlr, 4) AS vlr FROM "
+                    "skbio.stats.pairwise_vlr((SELECT * FROM "
                     "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6),"
-                    "('s3','a',2),('s3','b',1),('s3','c',7)) AS t(sample_id, feature_id, value)))"
+                    "('s3','a',2),('s3','b',1),('s3','c',7)) AS t(sample_id, feature_id, value))) "
+                    "WHERE feature_1 < feature_2 ORDER BY vlr"
                 ),
-                description="Feature-by-feature log-ratio variances",
+                description=(
+                    "Rank feature pairs by how tightly they track each other across samples, "
+                    "smallest variance first — the pair at the top moves proportionally and is a "
+                    "candidate for co-occurring taxa. Filtering to feature_1 < feature_2 drops "
+                    "the zero diagonal and the mirrored half of the symmetric matrix."
+                ),
             )
         ]
         tags = {
             "vgi.category": "composition",
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("feature_1", "VARCHAR", "First feature id."),
                     ("feature_2", "VARCHAR", "Second feature id."),
@@ -904,19 +980,25 @@ class Ancom(SinkBuffer[_DiffArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.ancom((SELECT s.sample_id, s.feature_id, s.count, g.grp FROM "
+                    "SELECT feature_id, w, significant FROM skbio.stats.ancom("
+                    "(SELECT s.sample_id, s.feature_id, s.count, g.grp FROM "
                     "(VALUES ('s1','b1',12),('s1','b2',11),('s2','b1',9),('s2','b2',11),('s3','b1',1),"
                     "('s3','b2',11),('s4','b1',22),('s4','b2',21),('s5','b1',20),('s5','b2',22),"
                     "('s6','b1',23),('s6','b2',21)) AS s(sample_id, feature_id, count) "
                     "JOIN (VALUES ('s1','x'),('s2','x'),('s3','x'),('s4','y'),('s5','y'),('s6','y')) "
-                    "AS g(sample, grp) ON s.sample_id = g.sample))"
+                    "AS g(sample, grp) ON s.sample_id = g.sample)) ORDER BY w DESC"
                 ),
-                description="ANCOM over a two-group feature table",
+                description=(
+                    "Find which features differ between two groups of samples, strongest evidence "
+                    "first. The join is the part worth copying: a table function gets one input "
+                    "relation, so the per-sample group label has to ride in as a fourth column "
+                    "rather than a second argument."
+                ),
             )
         ]
         tags = {
             "vgi.category": "composition",
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("feature_id", "VARCHAR", "Feature id."),
                     ("w", "BIGINT", "ANCOM W statistic (number of sub-hypotheses rejected)."),
@@ -1009,19 +1091,26 @@ class DirmultTtest(SinkBuffer[_DiffArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.dirmult_ttest((SELECT s.sample_id, s.feature_id, s.count, g.grp FROM "
+                    "SELECT feature_id, round(log2_fold_change, 4) AS log2_fold_change, "
+                    "round(qvalue, 4) AS qvalue, significant FROM skbio.stats.dirmult_ttest("
+                    "(SELECT s.sample_id, s.feature_id, s.count, g.grp FROM "
                     "(VALUES ('s1','b1',12),('s1','b2',11),('s2','b1',9),('s2','b2',11),('s3','b1',1),"
                     "('s3','b2',11),('s4','b1',22),('s4','b2',21),('s5','b1',20),('s5','b2',22),"
                     "('s6','b1',23),('s6','b2',21)) AS s(sample_id, feature_id, count) "
                     "JOIN (VALUES ('s1','x'),('s2','x'),('s3','x'),('s4','y'),('s5','y'),('s6','y')) "
-                    "AS g(sample, grp) ON s.sample_id = g.sample))"
+                    "AS g(sample, grp) ON s.sample_id = g.sample)) ORDER BY qvalue"
                 ),
-                description="Dirichlet-multinomial t-test over a two-group feature table",
+                description=(
+                    "Report an effect size and a multiple-testing-corrected q-value per feature, "
+                    "most significant first. Prefer this over ancom when you need a direction and "
+                    "magnitude (the log2 fold change) rather than just a ranked W statistic; the "
+                    "seed is fixed, so the numbers are reproducible."
+                ),
             )
         ]
         tags = {
             "vgi.category": "composition",
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("feature_id", "VARCHAR", "Feature id."),
                     ("t_statistic", "DOUBLE", "T-statistic for the group difference."),

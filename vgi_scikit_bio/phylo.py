@@ -29,8 +29,8 @@ from vgi.table_function import BindParams
 from vgi_rpc.rpc import OutputCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
-from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
+from .schema_utils import result_columns_schema
 
 _EXAMPLE_TREE = "((f1:0.1,f2:0.2):0.3,(f3:0.15,f4:0.25):0.35);"
 _EXAMPLE_TABLE = (
@@ -108,15 +108,21 @@ class FaithPd(SinkBuffer[_FaithArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    f"SELECT * FROM skbio.diversity.faith_pd((SELECT * FROM {_EXAMPLE_TABLE}), "
-                    f"tree := '{_EXAMPLE_TREE}')"
+                    "SELECT sample_id, round(faith_pd, 4) AS faith_pd FROM skbio.diversity.faith_pd("
+                    f"(SELECT * FROM {_EXAMPLE_TABLE}), tree := '{_EXAMPLE_TREE}') "
+                    "ORDER BY faith_pd DESC"
                 ),
-                description="Faith's PD of three samples over a 4-tip tree",
+                description=(
+                    "Rank samples by how much evolutionary history they contain, not just how "
+                    "many features they have. s3 holds one feature from each clade and so spans "
+                    "more of the tree than s1 or s2, whose two features are siblings -- the "
+                    "distinction plain richness cannot make and the reason to pass a tree at all."
+                ),
             )
         ]
         tags = {
             "vgi.category": "phylogenetic",
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("sample_id", "VARCHAR", "Sample id."),
                     ("faith_pd", "DOUBLE", "Total branch length of the features present in the sample."),
@@ -220,15 +226,22 @@ class Unifrac(SinkBuffer[_UnifracArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    f"SELECT * FROM skbio.diversity.unifrac((SELECT * FROM {_EXAMPLE_TABLE}), "
-                    f"tree := '{_EXAMPLE_TREE}')"
+                    "SELECT id_1, id_2, round(distance, 4) AS distance FROM skbio.diversity.unifrac("
+                    f"(SELECT * FROM {_EXAMPLE_TABLE}), tree := '{_EXAMPLE_TREE}') "
+                    "WHERE id_1 < id_2 ORDER BY distance"
                 ),
-                description="Unweighted UniFrac distances over a 4-tip tree",
+                description=(
+                    "Order sample pairs by how much evolutionary history they fail to share. "
+                    "Unlike Bray-Curtis, two samples holding different-but-closely-related "
+                    "features come out close together here, which is why UniFrac is the default "
+                    "beta metric for 16S data. Keep the full matrix (drop the filter) to feed "
+                    "pcoa or permanova."
+                ),
             )
         ]
         tags = {
             "vgi.category": "phylogenetic",
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("id_1", "VARCHAR", "First sample id."),
                     ("id_2", "VARCHAR", "Second sample id."),
@@ -347,16 +360,23 @@ class SubsampleCounts(SinkBuffer[_SubsampleArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.diversity.subsample_counts((SELECT * FROM "
+                    "SELECT sample_id, feature_id, count FROM skbio.diversity.subsample_counts("
+                    "(SELECT * FROM "
                     "(VALUES ('s1','a',4),('s1','b',2),('s1','c',6),('s2','a',10),('s2','b',5),('s2','c',5)) "
-                    "AS t(sample_id, feature_id, count)), depth := 8)"
+                    "AS t(sample_id, feature_id, count)), depth := 8) "
+                    "ORDER BY sample_id, feature_id"
                 ),
-                description="Rarefy each sample to a depth of 8",
+                description=(
+                    "Level two samples sequenced to different depths (12 and 20 counts) down to a "
+                    "common 8, so a later richness or diversity comparison measures biology "
+                    "rather than sequencing effort. Every sample's counts now sum to 8; run this "
+                    "before the alpha metrics, which are all depth-sensitive."
+                ),
             )
         ]
         tags = {
             "vgi.category": "preprocessing",
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("sample_id", "VARCHAR", "Sample id."),
                     ("feature_id", "VARCHAR", "Feature id."),

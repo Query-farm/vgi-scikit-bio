@@ -38,8 +38,8 @@ from vgi_rpc import ArrowSerializableDataclass
 from vgi_rpc.rpc import OutputCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
-from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
+from .schema_utils import result_columns_schema
 
 # ===========================================================================
 # Alpha diversity (aggregates over a single count column)
@@ -78,11 +78,11 @@ class _AlphaScalar(AggregateFunction[CountState]):
         cls,
         states: dict[int, CountState],
         group_ids: pa.Int64Array,
-        count: Annotated[pa.DoubleArray, Param(doc="Abundance value")],
+        abundance: Annotated[pa.DoubleArray, Param(doc="Abundance value for one (sample, feature) cell")],
     ) -> None:
         """Accumulate this batch's non-NULL counts into each sample's state."""
         batch: dict[int, list[float]] = {}
-        for g, c in zip(group_ids.to_pylist(), count.to_pylist(), strict=False):
+        for g, c in zip(group_ids.to_pylist(), abundance.to_pylist(), strict=False):
             if c is None:
                 continue
             batch.setdefault(g, []).append(c)
@@ -135,12 +135,12 @@ class _AlphaOrder(_AlphaScalar):
         cls,
         states: dict[int, CountState],
         group_ids: pa.Int64Array,
-        count: Annotated[pa.DoubleArray, Param(doc="Abundance value")],
+        abundance: Annotated[pa.DoubleArray, Param(doc="Abundance value for one (sample, feature) cell")],
         q: Annotated[float, ConstParam(doc="Diversity order (0 = richness, 1 = Shannon-like, 2 = Simpson-like)")],
     ) -> None:
         """Accumulate counts and record the requested diversity order q per sample."""
         batch: dict[int, list[float]] = {}
-        for g, c in zip(group_ids.to_pylist(), count.to_pylist(), strict=False):
+        for g, c in zip(group_ids.to_pylist(), abundance.to_pylist(), strict=False):
             if c is None:
                 continue
             batch.setdefault(g, []).append(c)
@@ -178,17 +178,38 @@ class _AlphaList(_AlphaScalar):
         return super().finalize(group_ids, states, params)
 
 
-def _alpha_example(name: str, *, order: bool = False) -> list[FunctionExample]:
-    """Build a one-entry example list for an alpha metric named ``name``."""
+def _alpha_example(name: str, blurb: str, *, order: bool = False) -> list[FunctionExample]:
+    """Build a one-entry example list for an alpha metric named ``name``.
+
+    Args:
+        name: The metric's machine name.
+        blurb: One sentence saying what the metric measures (reused in the docs).
+        order: True for the metrics parameterized by a diversity order ``q``.
+
+    Returns:
+        A one-entry example list for the metric's ``Meta.examples``.
+    """
     order_arg = ", q := 1" if order else ""
+    order_note = (
+        " The diversity order `q :=` is what tunes the metric: q = 0 counts features equally, "
+        "higher q weights the abundant ones more."
+        if order
+        else ""
+    )
     return [
         FunctionExample(
             sql=(
-                f"SELECT sample_id, skbio.diversity.{name}(count{order_arg}) FROM "
+                f"SELECT sample_id, skbio.diversity.{name}(count{order_arg}) AS {name} FROM "
                 "(VALUES (1,'a',4),(1,'b',2),(1,'c',1),(2,'a',1),(2,'b',9)) AS t(sample_id, feature_id, count) "
-                "GROUP BY sample_id"
+                "GROUP BY sample_id ORDER BY sample_id"
             ),
-            description=f"{name} per sample over a long feature table",
+            description=(
+                f"Score two communities with {name} in a single GROUP BY: sample 1 spreads 7 counts "
+                f"over three features, sample 2 puts 9 of its 10 into one, and the metric is what "
+                f"separates them. {blurb} Being an aggregate rather than a table function is the "
+                f"point — one query scores every sample in the table."
+                f"{order_note}"
+            ),
         )
     ]
 
@@ -235,7 +256,7 @@ def _make_alpha(
             "name": name,
             "description": f"{name} alpha-diversity metric over one sample's feature counts",
             "categories": categories or ["diversity", "alpha"],
-            "examples": _alpha_example(name, order=order),
+            "examples": _alpha_example(name, blurb, order=order),
             "tags": {**_alpha_doc(name, blurb, returns=returns), "vgi.category": "alpha"},
         },
     )
@@ -462,15 +483,22 @@ class BetaDiversity(SinkBuffer[_BetaArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.diversity.beta_diversity((SELECT * FROM "
+                    "SELECT id_1, id_2, round(distance, 4) AS distance FROM "
+                    "skbio.diversity.beta_diversity((SELECT * FROM "
                     "(VALUES (1,'a',4),(1,'b',2),(2,'a',1),(2,'b',9),(3,'a',0),(3,'b',5)) "
-                    "AS t(sample_id, feature_id, count)), metric := 'braycurtis')"
+                    "AS t(sample_id, feature_id, count)), metric := 'braycurtis') "
+                    "WHERE id_1 < id_2 ORDER BY distance"
                 ),
-                description="Bray-Curtis distances between three samples",
+                description=(
+                    "Rank the sample pairs from most to least similar under Bray-Curtis. The "
+                    "id_1 < id_2 filter keeps one row per unordered pair (the function emits the "
+                    "full square matrix, diagonal included) — drop the filter when feeding pcoa, "
+                    "permanova, or a tree builder, all of which want the whole matrix."
+                ),
             )
         ]
         tags = {
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("id_1", "VARCHAR", "First sample id."),
                     ("id_2", "VARCHAR", "Second sample id."),

@@ -139,8 +139,13 @@ class GcContent(ScalarFunction):
         categories = ["sequence", "nucleotide"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.gc_content('ATGCGGATTACAGG')",
-                description="GC fraction of an inline DNA sequence",
+                sql="SELECT skbio.sequence.gc_content('ATGCGGATTACAGG') AS gc",
+                description=(
+                    "Profile a read's base composition as a single number in [0, 1]. GC content "
+                    "is the first thing to check when reads look odd: an outlier flags "
+                    "contamination or a different organism, and it drives PCR and melting "
+                    "behaviour. Multiply by 100 for the percentage people usually quote."
+                ),
             )
         ]
         tags = {
@@ -180,8 +185,13 @@ class ReverseComplement(ScalarFunction):
         categories = ["sequence", "nucleotide"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG')",
-                description="Reverse complement of an inline DNA sequence",
+                sql="SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG') AS rc",
+                description=(
+                    "Read a sequence off the opposite strand. Sequencing gives reads in either "
+                    "orientation, so normalising with this is what lets two reads of the same "
+                    "locus be compared or deduplicated at all; it is also how a reverse primer "
+                    "is written down."
+                ),
             )
         ]
         tags = {
@@ -220,8 +230,13 @@ class Complement(ScalarFunction):
         categories = ["sequence", "nucleotide"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.complement('ATGCGGATTACAGG')",
-                description="Base complement of an inline DNA sequence",
+                sql="SELECT skbio.sequence.complement('ATGCGGATTACAGG') AS comp",
+                description=(
+                    "Complement each base while keeping 5'->3' order — deliberately *not* the "
+                    "opposite strand. Compare it with reverse_complement on the same input to "
+                    "see the difference that trips people up: only the reversed form is what "
+                    "actually pairs with the original."
+                ),
             )
         ]
         tags = {
@@ -259,8 +274,13 @@ class Transcribe(ScalarFunction):
         categories = ["sequence", "nucleotide"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.transcribe('ATGCGGATTACAGG')",
-                description="RNA transcript of an inline DNA sequence",
+                sql="SELECT skbio.sequence.transcribe('ATGCGGATTACAGG') AS rna",
+                description=(
+                    "Produce the RNA transcript of a DNA template (every T becomes U). Use it "
+                    "when a downstream tool or reference is written in RNA alphabet, or as the "
+                    "explicit middle step of the DNA -> RNA -> protein chain that translate "
+                    "otherwise does in one hop."
+                ),
             )
         ]
         tags = {
@@ -298,8 +318,13 @@ class Translate(ScalarFunction):
         categories = ["sequence", "nucleotide", "protein"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.translate('ATGCGGATTACAGGT')",
-                description="Protein translation of an inline DNA sequence",
+                sql="SELECT skbio.sequence.translate('ATGCGGATTACAGGT') AS protein",
+                description=(
+                    "Turn a coding sequence into its amino-acid sequence, reading codons from "
+                    "base 0 with the standard genetic code. Note the trailing base that does not "
+                    "complete a codon is simply dropped -- if the frame is unknown, use "
+                    "translate_six_frames instead of guessing this one."
+                ),
             )
         ]
         tags = {
@@ -352,8 +377,16 @@ class IsValidDna(ScalarFunction):
         categories = ["sequence", "nucleotide", "validation"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.is_valid_dna('ATGCN'), skbio.sequence.is_valid_dna('HELLO')",
-                description="Validate DNA strings",
+                sql=(
+                    "SELECT skbio.sequence.is_valid_dna('ATGCN') AS looks_like_dna, "
+                    "skbio.sequence.is_valid_dna('HELLO') AS looks_like_dna_too"
+                ),
+                description=(
+                    "Screen a text column before running the DNA transforms over it. Contrasting "
+                    "a degenerate-but-valid read (N is a legal IUPAC code) with free text shows "
+                    "where the line is: use it in a WHERE clause so junk rows are filtered rather "
+                    "than silently turning into NULLs downstream."
+                ),
             )
         ]
         tags = {
@@ -392,8 +425,16 @@ class IsValidProtein(ScalarFunction):
         categories = ["sequence", "protein", "validation"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.is_valid_protein('MRIT'), skbio.sequence.is_valid_protein('ATGC1')",
-                description="Validate protein strings",
+                sql=(
+                    "SELECT skbio.sequence.is_valid_protein('MRIT') AS looks_like_protein, "
+                    "skbio.sequence.is_valid_protein('ATGC1') AS looks_like_protein_too"
+                ),
+                description=(
+                    "Check a column really holds amino-acid sequences before feeding the protein "
+                    "aligners. Beware the asymmetry this example hints at: a pure A/C/G/T string "
+                    "is *also* valid protein, so pair this with is_valid_dna when you need to "
+                    "tell the two alphabets apart."
+                ),
             )
         ]
         tags = {
@@ -437,8 +478,13 @@ class HammingDistance(ScalarFunction):
         categories = ["sequence", "distance"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.hamming_distance('ACGTACGT', 'ACGAACGT')",
-                description="Hamming distance between two equal-length sequences",
+                sql="SELECT skbio.sequence.hamming_distance('ACGTACGT', 'ACGAACGT') AS distance",
+                description=(
+                    "Score how far a read has drifted from its reference as a length-normalised "
+                    "fraction, so reads of different lengths stay comparable. One substitution in "
+                    "eight bases gives 0.125; multiply by the length to recover the raw mismatch "
+                    "count. Requires equal lengths -- align first if there are indels."
+                ),
             )
         ]
         tags = {
@@ -513,8 +559,12 @@ class GcFrequency(ScalarFunction):
         categories = ["sequence", "nucleotide"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.gc_frequency('ATGCGGATTACAGG')",
-                description="Count of G/C bases in a DNA sequence",
+                sql="SELECT skbio.sequence.gc_frequency('ATGCGGATTACAGG') AS gc_bases",
+                description=(
+                    "Count G and C bases outright rather than as a fraction. The raw count is "
+                    "what you want when summing across reads or weighting by length; "
+                    "gc_content gives the same information already divided by the sequence length."
+                ),
             )
         ]
         tags = _doc(
@@ -549,8 +599,13 @@ class Degap(ScalarFunction):
         categories = ["sequence"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.degap('AC-GT--A')",
-                description="Strip alignment gaps from a sequence",
+                sql="SELECT skbio.sequence.degap('AC-GT--A') AS ungapped",
+                description=(
+                    "Recover the original sequence from an aligned one by dropping the gap "
+                    "characters an alignment inserted. Run it before length, composition, or "
+                    "k-mer calculations, all of which would otherwise count '-' as if it were a "
+                    "residue."
+                ),
             )
         ]
         tags = _doc(
@@ -585,8 +640,12 @@ class ReverseTranscribe(ScalarFunction):
         categories = ["sequence", "nucleotide"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.reverse_transcribe('AUGCGGAUUACAGG')",
-                description="DNA of an inline RNA sequence",
+                sql="SELECT skbio.sequence.reverse_transcribe('AUGCGGAUUACAGG') AS dna",
+                description=(
+                    "Bring RNA-alphabet sequences (U instead of T) back into DNA space so they "
+                    "can be compared against a DNA reference or run through the DNA-only "
+                    "functions. It is the exact inverse of transcribe."
+                ),
             )
         ]
         tags = _doc(
@@ -621,8 +680,14 @@ class HasGaps(ScalarFunction):
         categories = ["sequence", "validation"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.has_gaps('AC-GT'), skbio.sequence.has_gaps('ACGT')",
-                description="Detect gaps in sequences",
+                sql=(
+                    "SELECT skbio.sequence.has_gaps('AC-GT') AS aligned_row, skbio.sequence.has_gaps('ACGT') AS raw_row"
+                ),
+                description=(
+                    "Tell aligned sequences apart from raw ones in a mixed column — the gapped "
+                    "row is the one that came out of an alignment. Use it to decide which rows "
+                    "need degap before a length or composition calculation."
+                ),
             )
         ]
         tags = _doc(
@@ -657,8 +722,16 @@ class HasDegenerates(ScalarFunction):
         categories = ["sequence", "nucleotide", "validation"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.has_degenerates('ACGTN'), skbio.sequence.has_degenerates('ACGT')",
-                description="Detect ambiguity codes in DNA",
+                sql=(
+                    "SELECT skbio.sequence.has_degenerates('ACGTN') AS ambiguous_read, "
+                    "skbio.sequence.has_degenerates('ACGT') AS clean_read"
+                ),
+                description=(
+                    "Flag reads containing ambiguity codes (N, R, Y, ...), i.e. positions the "
+                    "basecaller could not resolve. Filtering these out is a standard quality "
+                    "step before variant calling or exact-match lookups, where an N would "
+                    "otherwise silently fail to match."
+                ),
             )
         ]
         tags = _doc(
@@ -694,8 +767,13 @@ class CountSubsequence(ScalarFunction):
         categories = ["sequence"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.count_subsequence('ATGCGATGCATG', 'ATG')",
-                description="Count occurrences of a motif",
+                sql="SELECT skbio.sequence.count_subsequence('ATGCGATGCATG', 'ATG') AS start_codons",
+                description=(
+                    "Count how often a motif occurs in a sequence — here the ATG start codon, "
+                    "three times. This is the cheap way to screen a table of reads for a "
+                    "restriction site, primer binding site, or repeat before spending an "
+                    "alignment on them."
+                ),
             )
         ]
         tags = _doc(
@@ -732,8 +810,13 @@ class IsReverseComplement(ScalarFunction):
         categories = ["sequence", "nucleotide", "validation"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.is_reverse_complement('ATGC', 'GCAT')",
-                description="Check reverse-complement relationship",
+                sql="SELECT skbio.sequence.is_reverse_complement('ATGC', 'GCAT') AS same_locus",
+                description=(
+                    "Decide whether two reads are the same sequence seen from opposite strands, "
+                    "in one predicate rather than reverse-complementing one side and comparing. "
+                    "Use it to collapse strand-duplicate reads or to check a primer pair points "
+                    "the right way."
+                ),
             )
         ]
         tags = _doc(
@@ -769,8 +852,13 @@ class MismatchCount(ScalarFunction):
         categories = ["sequence", "distance"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.mismatch_count('ACGTACGT', 'ACGAACGT')",
-                description="Count mismatches between two sequences",
+                sql="SELECT skbio.sequence.mismatch_count('ACGTACGT', 'ACGAACGT') AS mismatches",
+                description=(
+                    "Count differing positions between a read and its reference as a whole "
+                    "number, which is what edit-distance thresholds are usually expressed in "
+                    "('accept up to 2 mismatches'). hamming_distance gives the same comparison "
+                    "as a length-normalised fraction."
+                ),
             )
         ]
         tags = _doc(
@@ -807,8 +895,13 @@ class MatchCount(ScalarFunction):
         categories = ["sequence", "distance"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.sequence.match_count('ACGTACGT', 'ACGAACGT')",
-                description="Count matches between two sequences",
+                sql="SELECT skbio.sequence.match_count('ACGTACGT', 'ACGAACGT') AS matches",
+                description=(
+                    "Count agreeing positions between two equal-length sequences — the "
+                    "complement of mismatch_count (the two always sum to the length). Divide by "
+                    "the length for percent identity, the number most similarity thresholds are "
+                    "quoted in."
+                ),
             )
         ]
         tags = _doc(

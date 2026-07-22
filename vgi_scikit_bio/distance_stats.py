@@ -29,8 +29,8 @@ from vgi_rpc.rpc import OutputCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
 from .distance_utils import distance_matrix_from_long
-from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
+from .schema_utils import result_columns_schema
 
 
 def _require(schema: pa.Schema, col: str, label: str) -> str:
@@ -161,7 +161,7 @@ class _GroupedTest(SinkBuffer[_GroupedTestArgs, DrainState]):
 def _grouped_doc(name: str, stat: str, blurb: str) -> dict[str, str]:
     """Build the doc tags for a grouped distance test."""
     return {
-        "vgi.result_columns_md": columns_md_rows(
+        "vgi.result_columns_schema": result_columns_schema(
             [
                 ("method", "VARCHAR", "Test name."),
                 ("test_statistic", "DOUBLE", f"The {stat} statistic."),
@@ -210,13 +210,20 @@ class Permanova(_GroupedTest):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.permanova((SELECT b.id_1, b.id_2, b.distance, g.grp FROM "
+                    "SELECT method, round(test_statistic, 4) AS pseudo_f, p_value, number_of_groups "
+                    "FROM skbio.stats.permanova((SELECT b.id_1, b.id_2, b.distance, g.grp FROM "
                     "skbio.diversity.beta_diversity((SELECT * FROM (VALUES ('s1','a',4),('s1','b',1),"
                     "('s2','a',3),('s2','b',2),('s3','a',1),('s3','b',8),('s4','a',0),('s4','b',9)) "
                     "AS t(sample_id, feature_id, count))) AS b JOIN (VALUES ('s1','x'),('s2','x'),"
                     "('s3','y'),('s4','y')) AS g(sample, grp) ON b.id_1 = g.sample))"
                 ),
-                description="PERMANOVA over a beta-diversity matrix with a two-group split",
+                description=(
+                    "Test whether two groups of samples really are separated in community space, "
+                    "end to end: build the Bray-Curtis matrix, join each sample's group label "
+                    "onto id_1, and read off pseudo-F with its permutation p-value. The join is "
+                    "the pattern worth copying — a table function takes one input relation, so "
+                    "the grouping has to ride in as a fourth column rather than a second argument."
+                ),
             )
         ]
         tags = _grouped_doc(
@@ -246,13 +253,20 @@ class Anosim(_GroupedTest):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.anosim((SELECT b.id_1, b.id_2, b.distance, g.grp FROM "
+                    "SELECT method, round(test_statistic, 4) AS r_statistic, p_value, number_of_groups "
+                    "FROM skbio.stats.anosim((SELECT b.id_1, b.id_2, b.distance, g.grp FROM "
                     "skbio.diversity.beta_diversity((SELECT * FROM (VALUES ('s1','a',4),('s1','b',1),"
                     "('s2','a',3),('s2','b',2),('s3','a',1),('s3','b',8),('s4','a',0),('s4','b',9)) "
                     "AS t(sample_id, feature_id, count))) AS b JOIN (VALUES ('s1','x'),('s2','x'),"
                     "('s3','y'),('s4','y')) AS g(sample, grp) ON b.id_1 = g.sample))"
                 ),
-                description="ANOSIM over a beta-diversity matrix with a two-group split",
+                description=(
+                    "Ask the same question as permanova but on ranked distances, which makes "
+                    "ANOSIM the more robust choice when the distances are skewed or the groups "
+                    "differ in spread. Its R statistic is directly interpretable on its own "
+                    "scale: near 1 means the groups are well separated, near 0 that the grouping "
+                    "explains nothing."
+                ),
             )
         ]
         tags = _grouped_doc(
@@ -293,15 +307,21 @@ class Mantel(SinkBuffer[_MantelArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.stats.mantel((SELECT * FROM "
+                    "SELECT method, round(correlation, 4) AS correlation, p_value, n "
+                    "FROM skbio.stats.mantel((SELECT * FROM "
                     "(VALUES ('a','b',0.5,0.4),('a','c',0.7,0.9),('b','c',0.6,0.5)) "
                     "AS d(id_1, id_2, distance_x, distance_y)))"
                 ),
-                description="Mantel correlation between two distance matrices",
+                description=(
+                    "Test whether two dissimilarities measured over the same samples covary — "
+                    "community distance against geographic distance, say. Both matrices ride in "
+                    "as two aligned distance columns over the same id pairs, which is exactly "
+                    "what joining two beta_diversity results on (id_1, id_2) produces."
+                ),
             )
         ]
         tags = {
-            "vgi.result_columns_md": columns_md_rows(
+            "vgi.result_columns_schema": result_columns_schema(
                 [
                     ("method", "VARCHAR", "Correlation method (pearson or spearman)."),
                     ("correlation", "DOUBLE", "Mantel correlation coefficient (in [-1, 1])."),

@@ -128,6 +128,45 @@ points at the root modules — that breaks console scripts on `pip install`.
    `finalize` (chao1 in particular needs integer singletons/doubletons).
 10. **HTTP entry point:** current vgi-python has no `main_http`; `serve.py` /
     `main_http()` inject `--http` into the worker CLI.
+11. **`skbio.stats.composition` squeezes single-sample results.** `power` and
+    `multi_replace` return a 1-D `(D,)` array for a `(1, D)` input, so
+    `transformed[i, j]` raises `IndexError` on a one-sample table. Every encode
+    that indexes two-dimensionally wraps the result in `np.atleast_2d` — keep
+    that when adding a transform, and give it an example with **one** sample if
+    you want the linter's scan probe to catch a regression.
+12. **A `q :=` order must be an integer literal.** `hill(count, q := 2)` works;
+    `q := 2.0` is parsed by DuckDB as `DECIMAL`, which the framework cannot
+    convert to `DOUBLE` (`ArrowInvalid`). Examples and agent tasks use integers.
+
+## Metadata invariants (the `vgi-lint-check` gate)
+
+The worker is held at **assurance level L2** (static metadata clean *and*
+`--execute` clean). Four invariants are easy to break and are worth knowing
+before adding a function:
+
+- **Every function needs a described example.** `Meta.examples` alone is not
+  enough: it surfaces through `duckdb_functions().examples`, a bare `VARCHAR[]`
+  of SQL strings that drops the description. `worker._apply_discovery_tags`
+  re-publishes the same examples as a `vgi.example_queries` JSON tag so the prose
+  survives — so write the description on the `FunctionExample` and it is carried
+  automatically (VGI515/VGI146).
+- **Examples must teach, not dump.** A bare `SELECT * FROM fn(...)` is a finding
+  (VGI514); project the columns that matter and order them. Keep the example a
+  *single* table-function scan (no outer join or CTE) — the linter rewrites it to
+  `SELECT * FROM fn(...)` to DESCRIBE the result schema and to probe the scan.
+- **Table functions declare their result schema** with exactly one of
+  `vgi.result_columns_schema` (JSON `[{name,type,description}]`, for a fixed
+  shape) or `vgi.result_dynamic_columns_md` (one `Name | Type | Description`
+  Markdown table per variant, when the shape follows an argument — `id :=` on the
+  sequence/alignment functions, `n_components :=` on the ordinations). Use the
+  `schema_utils` helpers. `vgi.result_columns_md` is retired (VGI414), and the
+  declared columns are checked against the live `DESCRIBE` (VGI910).
+- **Every object must appear in `vgi.agent_test_tasks`** (VGI520): a function
+  with no task covering its `reference_sql` is a finding. Add the function to an
+  existing thematic task where it fits rather than inventing a one-line task.
+  Verify with `vgi-lint simulate <worker> --verify-references`, which runs every
+  reference query ×3 — never assert a permutation p-value (permanova / anosim /
+  mantel) or anything else that is not reproducible.
 
 ## Packaging & CI
 

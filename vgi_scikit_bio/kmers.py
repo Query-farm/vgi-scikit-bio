@@ -5,8 +5,8 @@ row per distinct token per input sequence -- which is the natural shape for SQL
 (pivot back to a wide matrix, join token weights, or aggregate per sequence):
 
     -- 4-mer profile of each read
-    SELECT id, kmer, count
-    FROM skbio.sequence.kmer_frequencies((SELECT id, seq FROM reads), id := 'id', k := 4);
+    SELECT read_id, kmer, count
+    FROM skbio.sequence.kmer_frequencies((SELECT read_id, seq FROM reads), id := 'read_id', k := 4);
 
 The token vocabulary is data-dependent (it is not known until the sequences are
 read), so long format sidesteps the fixed-output-width limit. Both functions
@@ -29,10 +29,32 @@ from vgi.table_function import BindParams
 from vgi_rpc.rpc import OutputCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
-from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
+from .schema_utils import result_dynamic_columns_md
 
-_ID_NOTE = "If an `id` column is named, it is carried through as the first column on each row."
+_ID_NOTE = (
+    "The carried column takes the *name and type* of the input column named by `id :=`; "
+    "the second variant shows the common case of a `VARCHAR` read id."
+)
+
+
+def _long_result_cols(token: str, token_type: str, token_doc: str, value: tuple[str, str, str]) -> str:
+    """Result-schema variants for a long ``(id?, token, value)`` composition function.
+
+    The shape depends on ``id :=``: naming an id column carries it through as the
+    first output column, under the input column's own name and type.
+    """
+    base = [(token, token_type, token_doc), value]
+    return result_dynamic_columns_md(
+        [
+            ("Default -- no `id :=`", base),
+            (
+                "With `id := 'read_id'` (a `VARCHAR` id column)",
+                [("read_id", "VARCHAR", "The named id column, repeated on every row for that sequence.")] + base,
+            ),
+        ],
+        note=_ID_NOTE,
+    )
 
 
 def _sequence_column(input_schema: pa.Schema, id_col: str, seq_arg: str) -> str:
@@ -83,20 +105,25 @@ class KmerFrequencies(SinkBuffer[_KmerArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.sequence.kmer_frequencies("
-                    "(SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG'), (2, 'TTGCACGT')) AS reads(id, seq)), "
-                    "id := 'id', k := 3)"
+                    "SELECT read_id, kmer, count FROM skbio.sequence.kmer_frequencies("
+                    "(SELECT * FROM (VALUES ('r1', 'ATGCGGATTACAGG'), ('r2', 'TTGCACGT')) "
+                    "AS reads(read_id, seq)), id := 'read_id', k := 3) "
+                    "ORDER BY read_id, count DESC, kmer"
                 ),
-                description="3-mer counts per sequence",
+                description=(
+                    "Profile the 3-mer composition of each read, most frequent k-mer first. This "
+                    "is the building block of alignment-free comparison: the long (read, kmer, "
+                    "count) output PIVOTs straight into a feature matrix for clustering or "
+                    "taxonomic classification."
+                ),
             )
         ]
         tags = {
-            "vgi.result_columns_md": columns_md_rows(
-                [
-                    ("kmer", "VARCHAR", "A k-length subsequence (token)."),
-                    ("count", "BIGINT", "Number of overlapping occurrences in the sequence."),
-                ],
-                note=_ID_NOTE,
+            "vgi.result_dynamic_columns_md": _long_result_cols(
+                "kmer",
+                "VARCHAR",
+                "A k-length subsequence (token).",
+                ("count", "BIGINT", "Number of overlapping occurrences in the sequence."),
             ),
             "vgi.doc_llm": (
                 "Table function that counts overlapping k-mers (length-`k` subsequences) in each input "
@@ -217,20 +244,25 @@ class ResidueFrequencies(SinkBuffer[_ResidueArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.sequence.residue_frequencies("
-                    "(SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG'), (2, 'TTGCACGT')) AS reads(id, seq)), "
-                    "id := 'id')"
+                    "SELECT read_id, residue, count FROM skbio.sequence.residue_frequencies("
+                    "(SELECT * FROM (VALUES ('r1', 'ATGCGGATTACAGG'), ('r2', 'TTGCACGT')) "
+                    "AS reads(read_id, seq)), id := 'read_id') "
+                    "ORDER BY read_id, residue"
                 ),
-                description="Base composition per sequence",
+                description=(
+                    "Break each read down into its per-base counts, in alphabetical order so the "
+                    "two reads line up column-for-column. Reading the A/C/G/T counts side by side "
+                    "is how you spot a skewed or low-complexity read before it distorts a "
+                    "downstream analysis."
+                ),
             )
         ]
         tags = {
-            "vgi.result_columns_md": columns_md_rows(
-                [
-                    ("residue", "VARCHAR", "A single residue (base or amino acid)."),
-                    ("count", "BIGINT", "Number of occurrences in the sequence."),
-                ],
-                note=_ID_NOTE,
+            "vgi.result_dynamic_columns_md": _long_result_cols(
+                "residue",
+                "VARCHAR",
+                "A single residue (base or amino acid).",
+                ("count", "BIGINT", "Number of occurrences in the sequence."),
             ),
             "vgi.doc_llm": (
                 "Table function that counts single residues (nucleotide bases or amino acids) in each input "
@@ -339,20 +371,26 @@ class TranslateSixFrames(SinkBuffer[_ResidueArgs, DrainState]):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.sequence.translate_six_frames("
-                    "(SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG')) AS reads(id, seq)), id := 'id')"
+                    "SELECT read_id, frame, protein, length(protein) AS residues FROM "
+                    "skbio.sequence.translate_six_frames((SELECT * FROM "
+                    "(VALUES ('r1', 'ATGCGGATTACAGG')) AS reads(read_id, seq)), id := 'read_id') "
+                    "ORDER BY protein NOT LIKE '%*%' DESC, frame"
                 ),
-                description="Six-frame translation of a DNA sequence",
+                description=(
+                    "Translate a read in all six reading frames and surface the stop-codon-free "
+                    "ones first — the practical way to find the open reading frame when the "
+                    "coding strand and offset are unknown. The residue count shows how long each "
+                    "candidate peptide is."
+                ),
             )
         ]
         tags = {
             "vgi.category": "composition",
-            "vgi.result_columns_md": columns_md_rows(
-                [
-                    ("frame", "VARCHAR", "Reading frame: +1/+2/+3 (forward) or -1/-2/-3 (reverse)."),
-                    ("protein", "VARCHAR", "The amino-acid translation for that frame (stops as '*')."),
-                ],
-                note=_ID_NOTE,
+            "vgi.result_dynamic_columns_md": _long_result_cols(
+                "frame",
+                "VARCHAR",
+                "Reading frame: +1/+2/+3 (forward) or -1/-2/-3 (reverse).",
+                ("protein", "VARCHAR", "The amino-acid translation for that frame (stops as '*')."),
             ),
             "vgi.doc_llm": (
                 "Table function translating each input DNA sequence in all six reading frames — the three "

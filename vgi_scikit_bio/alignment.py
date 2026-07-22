@@ -34,8 +34,8 @@ from vgi.table_function import BindParams
 from vgi_rpc.rpc import OutputCollector
 
 from .buffering import DrainState, SinkBuffer, input_schema_of
-from .schema_utils import columns_md_rows
 from .schema_utils import field as sfield
+from .schema_utils import result_dynamic_columns_md
 
 
 def _aligners(kind: str) -> tuple[Callable[..., Any], Callable[..., Any], type]:
@@ -107,8 +107,13 @@ class AlignScoreNucleotide(ScalarFunction):
         categories = ["alignment", "nucleotide"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.alignment.align_score_nucleotide('ACTGGT', 'ACTGT')",
-                description="Global alignment score of two DNA sequences",
+                sql="SELECT skbio.alignment.align_score_nucleotide('ACTGGT', 'ACTGT') AS score",
+                description=(
+                    "Score how similar two DNA sequences are with a full Needleman-Wunsch "
+                    "alignment, which unlike hamming_distance tolerates the differing lengths "
+                    "here by opening a gap. Reach for this when you only need the number -- "
+                    "pairwise_align_nucleotide when you need to see where the gap fell."
+                ),
             )
         ]
         tags = {
@@ -149,8 +154,13 @@ class AlignScoreProtein(ScalarFunction):
         categories = ["alignment", "protein"]
         examples = [
             FunctionExample(
-                sql="SELECT skbio.alignment.align_score_protein('MRITMK', 'MRIMK')",
-                description="Global alignment score of two protein sequences",
+                sql="SELECT skbio.alignment.align_score_protein('MRITMK', 'MRIMK') AS score",
+                description=(
+                    "Score two protein sequences under a substitution matrix, so chemically "
+                    "similar amino acids cost less than unrelated ones -- the reason protein "
+                    "similarity cannot be measured by counting identities. Use "
+                    "pairwise_align_protein when the alignment itself matters."
+                ),
             )
         ]
         tags = {
@@ -293,17 +303,33 @@ class _PairwiseAlign(SinkBuffer[_AlignArgs, DrainState]):
         return columns
 
 
-def _align_result_cols(id_note: bool) -> Any:
-    """Result-columns markdown for an alignment table function."""
-    note = "If an `id` column is named, it is carried through as the first column." if id_note else None
-    return columns_md_rows(
+_ALIGN_COLUMNS: list[tuple[str, str, str]] = [
+    ("aligned_1", "VARCHAR", "First sequence with alignment gaps ('-')."),
+    ("aligned_2", "VARCHAR", "Second sequence with alignment gaps ('-')."),
+    ("score", "DOUBLE", "Optimal alignment score."),
+    ("length", "BIGINT", "Aligned length (number of columns)."),
+]
+
+
+def _align_result_cols() -> str:
+    """Result-schema variants for an alignment table function.
+
+    The shape depends on ``id :=``: naming an id column carries it through as the
+    first output column, under the input column's own name and type, so there are
+    two variants rather than one static schema.
+    """
+    return result_dynamic_columns_md(
         [
-            ("aligned_1", "VARCHAR", "First sequence with alignment gaps ('-')."),
-            ("aligned_2", "VARCHAR", "Second sequence with alignment gaps ('-')."),
-            ("score", "DOUBLE", "Optimal alignment score."),
-            ("length", "BIGINT", "Aligned length (number of columns)."),
+            ("Default -- no `id :=`", _ALIGN_COLUMNS),
+            (
+                "With `id := 'read_id'` (a `VARCHAR` id column)",
+                [("read_id", "VARCHAR", "The named id column, carried through unchanged.")] + _ALIGN_COLUMNS,
+            ),
         ],
-        note=note,
+        note=(
+            "The carried column takes the *name and type* of the input column named by `id :=`; "
+            "the second variant shows the common case of a `VARCHAR` read id."
+        ),
     )
 
 
@@ -321,16 +347,23 @@ class PairwiseAlignNucleotide(_PairwiseAlign):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.alignment.pairwise_align_nucleotide((SELECT * FROM "
-                    "(VALUES (1, 'ACTGGT', 'ACTGT')) AS p(id, ref, read)), id := 'id', "
-                    "seq1 := 'ref', seq2 := 'read')"
+                    "SELECT read_id, aligned_1, aligned_2, score, length FROM "
+                    "skbio.alignment.pairwise_align_nucleotide((SELECT * FROM "
+                    "(VALUES ('r1', 'ACTGGT', 'ACTGT'), ('r2', 'GATTACA', 'GATACA')) "
+                    "AS p(read_id, ref, read)), id := 'read_id', seq1 := 'ref', seq2 := 'read') "
+                    "ORDER BY score DESC"
                 ),
-                description="Global alignment of a DNA pair",
+                description=(
+                    "Align each read against its reference and rank the reads by how well they "
+                    "match: the aligned strings show where the gaps ('-') fell, so you can see "
+                    "the indel that the score alone only hints at. Carrying read_id through "
+                    "(id := 'read_id') is what lets the alignment be joined back to the source rows."
+                ),
             )
         ]
         tags = {
             "vgi.category": "pairwise",
-            "vgi.result_columns_md": _align_result_cols(True),
+            "vgi.result_dynamic_columns_md": _align_result_cols(),
             "vgi.doc_llm": (
                 "Table function performing pairwise alignment of two DNA sequence columns and emitting the "
                 "aligned strings, the score, and the aligned length, one row per input pair. The table arg is "
@@ -364,16 +397,23 @@ class PairwiseAlignProtein(_PairwiseAlign):
         examples = [
             FunctionExample(
                 sql=(
-                    "SELECT * FROM skbio.alignment.pairwise_align_protein((SELECT * FROM "
-                    "(VALUES (1, 'MRITMK', 'MRIMK')) AS p(id, ref, read)), id := 'id', "
-                    "seq1 := 'ref', seq2 := 'read')"
+                    "SELECT read_id, aligned_1, aligned_2, score, length FROM "
+                    "skbio.alignment.pairwise_align_protein((SELECT * FROM "
+                    "(VALUES ('p1', 'MRITMK', 'MRIMK'), ('p2', 'MKVLAA', 'MKVLAA')) "
+                    "AS p(read_id, ref, read)), id := 'read_id', seq1 := 'ref', seq2 := 'read') "
+                    "ORDER BY read_id"
                 ),
-                description="Global alignment of a protein pair",
+                description=(
+                    "Align candidate protein sequences against their references and inspect the "
+                    "gapped alignment beside the score. Comparing an imperfect pair with an "
+                    "identical one shows what a 'good' score looks like for this substitution "
+                    "matrix, which a bare score column cannot tell you."
+                ),
             )
         ]
         tags = {
             "vgi.category": "pairwise",
-            "vgi.result_columns_md": _align_result_cols(True),
+            "vgi.result_dynamic_columns_md": _align_result_cols(),
             "vgi.doc_llm": (
                 "Table function performing pairwise alignment of two protein sequence columns and emitting "
                 "the aligned strings, the score, and the aligned length, one row per input pair. The table "
