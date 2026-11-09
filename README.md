@@ -164,7 +164,7 @@ Community-ecology diversity over a **long feature table** — one row per
   `brillouin_d`, `fisher_alpha`, `gini_index`, `goods_coverage`, `heip_evenness`,
   `kempton_taylor_q`, `margalef`, `mcintosh_d`, `mcintosh_e`, `menhinick`,
   `robbins`, `simpson_d`, `simpson_e`, `strong`, `singles`, `doubles`, `enspie`;
-  parameterized `hill(count, q := …)` / `renyi` / `tsallis`; and interval/triple
+  parameterized `hill(count, q)` / `renyi` / `tsallis`; and interval/triple
   metrics `chao1_ci`, `esty_ci`, `osd` (return `DOUBLE[]`)
 - **Beta** — `beta_diversity(tbl, metric := …)` → the full distance matrix long
   (`braycurtis`, `jaccard`, `euclidean`, `canberra`, `cosine`, `jensenshannon`, …)

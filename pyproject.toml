@@ -26,7 +26,7 @@ classifiers = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "vgi-python[http]>=0.30.0",
+    "vgi-python[http]>=0.50.0",
     "scikit-bio>=0.6",
     "numpy",
     "pandas",
@@ -39,8 +39,8 @@ dependencies = [
 # the base deps: the published Docker image installs `.[serve]`, while a plain
 # `pip install vgi-scikit-bio` for an on-host stdio worker stays lean.
 serve = [
-    "vgi-python[http,oauth]>=0.30.0",
-    "vgi-rpc[sentry]>=0.44.1",
+    "vgi-python[http,oauth]>=0.50.0",
+    "vgi-rpc[sentry]>=0.52.3",
     "authlib",
 ]
 

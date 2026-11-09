@@ -93,7 +93,10 @@ class _AlphaScalar(AggregateFunction[CountState]):
     @classmethod
     def combine(cls, source: CountState, target: CountState, params: ProcessParams[None]) -> CountState:
         """Merge two partial count buffers for the same sample."""
-        return CountState(counts=source.counts + target.counts, order=source.order or target.order)
+        # Take q from a side that actually saw rows: an untouched initial state
+        # carries the 1.0 default, and q = 0 is falsy, so `or` would lose it.
+        order = source.order if source.counts else target.order
+        return CountState(counts=source.counts + target.counts, order=order)
 
     @classmethod
     def _score(cls, counts: npt.NDArray[np.int64], state: CountState) -> Any:
@@ -189,9 +192,9 @@ def _alpha_example(name: str, blurb: str, *, order: bool = False) -> list[Functi
     Returns:
         A one-entry example list for the metric's ``Meta.examples``.
     """
-    order_arg = ", q := 1" if order else ""
+    order_arg = ", 1" if order else ""
     order_note = (
-        " The diversity order `q :=` is what tunes the metric: q = 0 counts features equally, "
+        " The diversity order `q` (2nd positional arg) is what tunes the metric: q = 0 counts features equally, "
         "higher q weights the abundant ones more."
         if order
         else ""
@@ -379,7 +382,7 @@ _SCALAR_SPECS: list[tuple[str, str, str]] = [
     ),
 ]
 
-# Parameterized metrics taking a diversity order q (required `order :=`).
+# Parameterized metrics taking a diversity order q (required second positional argument).
 _ORDER_SPECS: list[tuple[str, str, str]] = [
     (
         "hill",

@@ -65,7 +65,7 @@ FROM ft WHERE sample_id = 1;
 
 # Parameterized Hill number: q=0 equals observed richness
 query I
-SELECT skbio.diversity.hill(count, q := 0)::BIGINT = skbio.diversity.observed_features(count)::BIGINT
+SELECT skbio.diversity.hill(count, 0)::BIGINT = skbio.diversity.observed_features(count)::BIGINT
 FROM ft WHERE sample_id = 1;
 ----
 true

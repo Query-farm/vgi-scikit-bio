@@ -134,8 +134,9 @@ points at the root modules — that breaks console scripts on `pip install`.
     that indexes two-dimensionally wraps the result in `np.atleast_2d` — keep
     that when adding a transform, and give it an example with **one** sample if
     you want the linter's scan probe to catch a regression.
-12. **A `q :=` order must be an integer literal.** `hill(count, q := 2)` works;
-    `q := 2.0` is parsed by DuckDB as `DECIMAL`, which the framework cannot
+12. **The `q` order is positional and must be an integer literal.** Aggregate
+    const params are positional-only (`hill(count, q := 2)` no longer binds);
+    `hill(count, 2)` works; `2.0` is parsed by DuckDB as `DECIMAL`, which the framework cannot
     convert to `DOUBLE` (`ArrowInvalid`). Examples and agent tasks use integers.
 
 ## Metadata invariants (the `vgi-lint-check` gate)

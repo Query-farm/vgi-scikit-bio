@@ -501,9 +501,9 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "row with three columns rounded to 4 decimal places: hill, renyi and tsallis."
         ),
         "reference_sql": (
-            "SELECT round(skbio.diversity.hill(count, q := 2), 4) AS hill, "
-            "round(skbio.diversity.renyi(count, q := 2), 4) AS renyi, "
-            "round(skbio.diversity.tsallis(count, q := 2), 4) AS tsallis "
+            "SELECT round(skbio.diversity.hill(count, 2), 4) AS hill, "
+            "round(skbio.diversity.renyi(count, 2), 4) AS renyi, "
+            "round(skbio.diversity.tsallis(count, 2), 4) AS tsallis "
             f"FROM {_D_COUNTS}"
         ),
     },
@@ -1207,7 +1207,7 @@ def _build_schema(name: str, functions: list[type]) -> Schema:
     """Build a ``Schema`` from its function list, ``_SCHEMA_META``, and its categories."""
     meta = _SCHEMA_META[name]
     return Schema(
-        name=name,
+        path=[name],
         comment=meta["comment"],
         tags={
             "provider": "scikit-bio",
