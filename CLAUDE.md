@@ -162,8 +162,12 @@ before adding a function:
   sequence/alignment functions, `n_components :=` on the ordinations). Use the
   `schema_utils` helpers. `vgi.result_columns_md` is retired (VGI414), and the
   declared columns are checked against the live `DESCRIBE` (VGI910).
-- **Every object must appear in `vgi.agent_test_tasks`** (VGI520): a function
-  with no task covering its `reference_sql` is a finding. Add the function to an
+- **Every object must appear in an agent test task** (VGI520): a function with
+  no task covering its `reference_sql` is a finding. The catalog tag
+  `vgi.agent_test_tasks` publishes only `{name, prompt}` (VGI416); each task's
+  `reference_sql` grader lives in `vgi-agent-tests.yaml` at the repo root, which
+  vgi-lint-check auto-discovers and merges by task name, so add/rename both
+  together. Add the function to an
   existing thematic task where it fits rather than inventing a one-line task.
   Verify with `vgi-lint simulate <worker> --verify-references`, which runs every
   reference query ×3 — never assert a permutation p-value (permanova / anosim /

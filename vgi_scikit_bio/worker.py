@@ -149,63 +149,27 @@ _CATALOG_EXECUTABLE_EXAMPLES = json.dumps(
 # raw ordination axis signs are deliberately never asserted — only the
 # deterministic parts of those results are.
 #
-# The inline datasets below are shared by several tasks; each prompt restates its
-# data in prose, so nothing the grader knows leaks into what the analyst is told.
-_D_COUNTS = "(VALUES ('a',4),('b',2),('c',1),('d',1),('e',3),('f',7)) AS t(feature_id, count)"
+# Only {name, prompt} is published in vgi.agent_test_tasks (VGI416). The private
+# graders (each task's reference_sql) live in vgi-agent-tests.yaml at the repo
+# root, which vgi-lint-check discovers and merges by task name; keep the two in
+# sync when adding or renaming a task.
+#
+# The inline datasets below are shared by several prompts, stated in prose so
+# nothing the grader knows leaks into what the analyst is told.
 _P_COUNTS = "(a,4), (b,2), (c,1), (d,1), (e,3), (f,7)"
-
-_D_FEATURES = (
-    "(VALUES ('s1','a',4),('s1','b',2),('s1','c',1),('s2','a',1),('s2','b',9),('s2','c',2)) "
-    "AS t(sample_id, feature_id, count)"
-)
 _P_FEATURES = "(s1,a,4), (s1,b,2), (s1,c,1), (s2,a,1), (s2,b,9), (s2,c,2)"
-
-_D_COMPOSITION = (
-    "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6)) "
-    "AS t(sample_id, feature_id, value)"
-)
 _P_COMPOSITION = "(s1,a,1), (s1,b,2), (s1,c,3), (s2,a,4), (s2,b,5), (s2,c,6)"
-
-_D_DISTANCES = (
-    "(VALUES ('a','b',5),('a','c',9),('a','d',9),('b','c',10),('b','d',10),('c','d',8)) AS d(id_1, id_2, distance)"
-)
 _P_DISTANCES = "(a,b,5), (a,c,9), (a,d,9), (b,c,10), (b,d,10), (c,d,8)"
-
 _D_TREE = "((f1:0.1,f2:0.2):0.3,(f3:0.15,f4:0.25):0.35);"
-_D_TREE_TABLE = (
-    "(VALUES ('s1','f1',1),('s1','f2',1),('s2','f3',1),('s2','f4',1),('s3','f1',1),('s3','f3',1)) "
-    "AS t(sample_id, feature_id, count)"
-)
 _P_TREE_TABLE = "(s1,f1,1), (s1,f2,1), (s2,f3,1), (s2,f4,1), (s3,f1,1), (s3,f3,1)"
-
-_D_GROUPED = (
-    "(VALUES ('s1','a',4),('s1','b',1),('s2','a',3),('s2','b',2),('s3','a',1),('s3','b',8),"
-    "('s4','a',0),('s4','b',9)) AS t(sample_id, feature_id, count)"
-)
 _P_GROUPED = "(s1,a,4), (s1,b,1), (s2,a,3), (s2,b,2), (s3,a,1), (s3,b,8), (s4,a,0), (s4,b,9)"
-_D_GROUPS = "(VALUES ('s1','x'),('s2','x'),('s3','y'),('s4','y')) AS g(sample, grp)"
 _P_GROUPS = "s1 and s2 are in group x; s3 and s4 are in group y"
-
-_D_DIFF_COUNTS = (
-    "(VALUES ('s1','b1',12),('s1','b2',11),('s2','b1',9),('s2','b2',11),('s3','b1',1),"
-    "('s3','b2',11),('s4','b1',22),('s4','b2',21),('s5','b1',20),('s5','b2',22),"
-    "('s6','b1',23),('s6','b2',21)) AS s(sample_id, feature_id, count)"
-)
 _P_DIFF_COUNTS = (
     "(s1,b1,12), (s1,b2,11), (s2,b1,9), (s2,b2,11), (s3,b1,1), (s3,b2,11), "
     "(s4,b1,22), (s4,b2,21), (s5,b1,20), (s5,b2,22), (s6,b1,23), (s6,b2,21)"
 )
-_D_DIFF_GROUPS = "(VALUES ('s1','x'),('s2','x'),('s3','x'),('s4','y'),('s5','y'),('s6','y')) AS g(sample, grp)"
 _P_DIFF_GROUPS = "s1, s2 and s3 are in group x; s4, s5 and s6 are in group y"
 
-_D_DIFF_INPUT = (
-    f"(SELECT s.sample_id, s.feature_id, s.count, g.grp FROM {_D_DIFF_COUNTS} "
-    f"JOIN {_D_DIFF_GROUPS} ON s.sample_id = g.sample)"
-)
-_D_GROUPED_INPUT = (
-    "(SELECT b.id_1, b.id_2, b.distance, g.grp FROM skbio.diversity.beta_diversity("
-    f"(SELECT * FROM {_D_GROUPED})) AS b JOIN {_D_GROUPS} ON b.id_1 = g.sample)"
-)
 
 _AGENT_TEST_TASKS: list[dict[str, str]] = [
     # --- sequence scalars -------------------------------------------------
@@ -214,7 +178,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
         "prompt": (
             "Compute the GC content of the DNA sequence 'ATGCGGATTACAGG'. Return a single row with one column named gc."
         ),
-        "reference_sql": "SELECT skbio.sequence.gc_content('ATGCGGATTACAGG') AS gc",
     },
     {
         "name": "gc_and_motif_counts",
@@ -223,10 +186,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "gc_bases, the number of G or C bases in it, and start_codons, the number of times "
             "the subsequence 'ATG' occurs in it."
         ),
-        "reference_sql": (
-            "SELECT skbio.sequence.gc_frequency('ATGCGATGCATG') AS gc_bases, "
-            "skbio.sequence.count_subsequence('ATGCGATGCATG', 'ATG') AS start_codons"
-        ),
     },
     {
         "name": "reverse_complement",
@@ -234,7 +193,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Return the reverse complement of the DNA sequence 'ATGCGGATTACAGG' "
             "as a single row with one column named rc."
         ),
-        "reference_sql": "SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG') AS rc",
     },
     {
         "name": "strand_relationship",
@@ -242,10 +200,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Return a single row with two boolean columns for the DNA pair 'ATGC' and 'GCAT': "
             "same_strand, true if the two strings are identical, and opposite_strand, true if "
             "the second is the reverse complement of the first."
-        ),
-        "reference_sql": (
-            "SELECT ('ATGC' = 'GCAT') AS same_strand, "
-            "skbio.sequence.is_reverse_complement('ATGC', 'GCAT') AS opposite_strand"
         ),
     },
     {
@@ -255,11 +209,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "columns: comp, its base complement (not reversed); rna, its RNA transcript; and "
             "back_to_dna, the DNA recovered by reverse-transcribing that RNA transcript."
         ),
-        "reference_sql": (
-            "SELECT skbio.sequence.complement('ATGCGGATTACAGG') AS comp, "
-            "skbio.sequence.transcribe('ATGCGGATTACAGG') AS rna, "
-            "skbio.sequence.reverse_transcribe(skbio.sequence.transcribe('ATGCGGATTACAGG')) AS back_to_dna"
-        ),
     },
     {
         "name": "translate",
@@ -267,7 +216,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Translate the DNA sequence 'ATGCGGATTACAGGT' to its amino-acid sequence using the "
             "standard genetic code. Return a single row with one column named protein."
         ),
-        "reference_sql": "SELECT skbio.sequence.translate('ATGCGGATTACAGGT') AS protein",
     },
     {
         "name": "sequence_quality_flags",
@@ -276,13 +224,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "(is it a valid IUPAC DNA sequence), valid_protein (is it a valid IUPAC protein "
             "sequence), gapped (does it contain gap characters), ambiguous (does it contain "
             "degenerate/ambiguity codes), and ungapped (the string with gap characters removed)."
-        ),
-        "reference_sql": (
-            "SELECT skbio.sequence.is_valid_dna('AC-GTN') AS valid_dna, "
-            "skbio.sequence.is_valid_protein('AC-GTN') AS valid_protein, "
-            "skbio.sequence.has_gaps('AC-GTN') AS gapped, "
-            "skbio.sequence.has_degenerates('AC-GTN') AS ambiguous, "
-            "skbio.sequence.degap('AC-GTN') AS ungapped"
         ),
     },
     {
@@ -293,21 +234,12 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "mismatches, the number of positions where they differ; and hamming, the Hamming "
             "distance between them rounded to 4 decimal places."
         ),
-        "reference_sql": (
-            "SELECT skbio.sequence.match_count('ACGTACGT', 'ACGAACGT') AS matches, "
-            "skbio.sequence.mismatch_count('ACGTACGT', 'ACGAACGT') AS mismatches, "
-            "round(skbio.sequence.hamming_distance('ACGTACGT', 'ACGAACGT'), 4) AS hamming"
-        ),
     },
     {
         "name": "kmer_count",
         "prompt": (
             "For the DNA read 'ATGCGGATTACAGG', how many distinct overlapping 3-mers occur? "
             "Return a single row with one column named n."
-        ),
-        "reference_sql": (
-            "SELECT count(*) AS n FROM skbio.sequence.kmer_frequencies("
-            "(SELECT * FROM (VALUES (1, 'ATGCGGATTACAGG')) AS r(id, seq)), id := 'id', k := 3)"
         ),
     },
     {
@@ -316,20 +248,12 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Break the DNA read 'ATGCGGATTACAGG' down into its per-base counts. Return one row "
             "per distinct base with columns residue and count, ordered by residue."
         ),
-        "reference_sql": (
-            "SELECT residue, count FROM skbio.sequence.residue_frequencies("
-            "(SELECT * FROM (VALUES ('ATGCGGATTACAGG')) AS r(seq))) ORDER BY residue"
-        ),
     },
     {
         "name": "six_frame_translation",
         "prompt": (
             "Translate the DNA read 'ATGCGGATTACAGG' in all six reading frames. Return one row "
             "per frame with columns frame and protein, ordered by frame."
-        ),
-        "reference_sql": (
-            "SELECT frame, protein FROM skbio.sequence.translate_six_frames("
-            "(SELECT * FROM (VALUES ('ATGCGGATTACAGG')) AS r(seq))) ORDER BY frame"
         ),
     },
     # --- alignment --------------------------------------------------------
@@ -339,7 +263,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Compute the optimal global alignment score between the DNA sequences 'ACTGGT' and "
             "'ACTGT'. Return a single row with one column named score."
         ),
-        "reference_sql": "SELECT skbio.alignment.align_score_nucleotide('ACTGGT', 'ACTGT') AS score",
     },
     {
         "name": "protein_alignment_score",
@@ -347,7 +270,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Compute the optimal global alignment score between the protein sequences 'MRITMK' "
             "and 'MRIMK'. Return a single row with one column named score."
         ),
-        "reference_sql": "SELECT skbio.alignment.align_score_protein('MRITMK', 'MRIMK') AS score",
     },
     {
         "name": "pairwise_dna_alignment",
@@ -356,10 +278,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "actual alignment. Return a single row with three columns: aligned_1 (the reference "
             "with alignment gaps), aligned_2 (the read with alignment gaps), and score."
         ),
-        "reference_sql": (
-            "SELECT aligned_1, aligned_2, score FROM skbio.alignment.pairwise_align_nucleotide("
-            "(SELECT * FROM (VALUES ('ACTGGT', 'ACTGT')) AS p(ref, read)))"
-        ),
     },
     {
         "name": "pairwise_protein_alignment",
@@ -367,10 +285,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Globally align the protein sequence 'MRIMK' against the reference 'MRITMK' and show "
             "the actual alignment. Return a single row with three columns: aligned_1 (the "
             "reference with alignment gaps), aligned_2 (the query with alignment gaps), and score."
-        ),
-        "reference_sql": (
-            "SELECT aligned_1, aligned_2, score FROM skbio.alignment.pairwise_align_protein("
-            "(SELECT * FROM (VALUES ('MRITMK', 'MRIMK')) AS p(ref, query)))"
         ),
     },
     # --- alpha diversity --------------------------------------------------
@@ -382,11 +296,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "alpha diversity rounded to 4 decimal places. Return columns sample_id and shannon, "
             "ordered by sample_id."
         ),
-        "reference_sql": (
-            "SELECT sample_id, round(skbio.diversity.shannon(count), 4) AS shannon FROM "
-            "(VALUES (1,'a',4),(1,'b',2),(2,'a',1),(2,'b',9)) AS t(sample_id, feature_id, count) "
-            "GROUP BY sample_id ORDER BY sample_id"
-        ),
     },
     {
         "name": "observed_richness",
@@ -394,10 +303,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Given the feature counts (1,'a',4), (1,'b',0), (1,'c',3) as (sample_id, feature_id, "
             "count) for sample 1, how many features are observed (have a non-zero count)? Return a "
             "single row with one integer column named richness."
-        ),
-        "reference_sql": (
-            "SELECT skbio.diversity.observed_features(count)::BIGINT AS richness FROM "
-            "(VALUES (1,'a',4),(1,'b',0),(1,'c',3)) AS t(sample_id, feature_id, count)"
         ),
     },
     {
@@ -409,15 +314,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "once), doubletons (features seen exactly twice), chao1_lower and chao1_upper (the "
             "lower and upper bounds of the Chao1 confidence interval)."
         ),
-        "reference_sql": (
-            "SELECT round(skbio.diversity.chao1(count), 4) AS chao1, "
-            "round(skbio.diversity.ace(count), 4) AS ace, "
-            "round(skbio.diversity.singles(count), 4) AS singletons, "
-            "round(skbio.diversity.doubles(count), 4) AS doubletons, "
-            "round(skbio.diversity.chao1_ci(count)[1], 4) AS chao1_lower, "
-            "round(skbio.diversity.chao1_ci(count)[2], 4) AS chao1_upper "
-            f"FROM {_D_COUNTS}"
-        ),
     },
     {
         "name": "observed_singles_doubles_triple",
@@ -426,12 +322,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "OSD triple — observed richness, singletons, doubletons — as a single row with three "
             "columns named observed, singletons and doubletons."
         ),
-        "reference_sql": (
-            "SELECT skbio.diversity.osd(count)[1] AS observed, "
-            "skbio.diversity.osd(count)[2] AS singletons, "
-            "skbio.diversity.osd(count)[3] AS doubletons "
-            f"FROM {_D_COUNTS}"
-        ),
     },
     {
         "name": "evenness_metrics",
@@ -439,14 +329,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             f"One sample has the feature counts {_P_COUNTS} as (feature_id, count). How evenly is "
             "abundance spread across its features? Return a single row with five columns rounded "
             "to 4 decimal places: pielou, heip, simpson_e, mcintosh_e and gini."
-        ),
-        "reference_sql": (
-            "SELECT round(skbio.diversity.pielou_evenness(count), 4) AS pielou, "
-            "round(skbio.diversity.heip_evenness(count), 4) AS heip, "
-            "round(skbio.diversity.simpson_e(count), 4) AS simpson_e, "
-            "round(skbio.diversity.mcintosh_e(count), 4) AS mcintosh_e, "
-            "round(skbio.diversity.gini_index(count), 4) AS gini "
-            f"FROM {_D_COUNTS}"
         ),
     },
     {
@@ -457,15 +339,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "six columns rounded to 4 decimal places: dominance, simpson, simpson_d, inv_simpson, "
             "enspie and berger_parker."
         ),
-        "reference_sql": (
-            "SELECT round(skbio.diversity.dominance(count), 4) AS dominance, "
-            "round(skbio.diversity.simpson(count), 4) AS simpson, "
-            "round(skbio.diversity.simpson_d(count), 4) AS simpson_d, "
-            "round(skbio.diversity.inv_simpson(count), 4) AS inv_simpson, "
-            "round(skbio.diversity.enspie(count), 4) AS enspie, "
-            "round(skbio.diversity.berger_parker_d(count), 4) AS berger_parker "
-            f"FROM {_D_COUNTS}"
-        ),
     },
     {
         "name": "mcintosh_and_strong_dominance",
@@ -473,11 +346,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             f"One sample has the feature counts {_P_COUNTS} as (feature_id, count). Return a "
             "single row with two columns rounded to 4 decimal places: mcintosh_d (McIntosh's "
             "dominance index) and strong (Strong's dominance index)."
-        ),
-        "reference_sql": (
-            "SELECT round(skbio.diversity.mcintosh_d(count), 4) AS mcintosh_d, "
-            "round(skbio.diversity.strong(count), 4) AS strong "
-            f"FROM {_D_COUNTS}"
         ),
     },
     {
@@ -487,11 +355,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "entropy-family diversity as a single row with two columns rounded to 4 decimal "
             "places: shannon and brillouin."
         ),
-        "reference_sql": (
-            "SELECT round(skbio.diversity.shannon(count), 4) AS shannon, "
-            "round(skbio.diversity.brillouin_d(count), 4) AS brillouin "
-            f"FROM {_D_COUNTS}"
-        ),
     },
     {
         "name": "diversity_orders",
@@ -499,12 +362,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             f"One sample has the feature counts {_P_COUNTS} as (feature_id, count). Compute the "
             "three diversity metrics that take a diversity order q, all at q = 2. Return a single "
             "row with three columns rounded to 4 decimal places: hill, renyi and tsallis."
-        ),
-        "reference_sql": (
-            "SELECT round(skbio.diversity.hill(count, 2), 4) AS hill, "
-            "round(skbio.diversity.renyi(count, 2), 4) AS renyi, "
-            "round(skbio.diversity.tsallis(count, 2), 4) AS tsallis "
-            f"FROM {_D_COUNTS}"
         ),
     },
     {
@@ -514,13 +371,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "sample-size-corrected richness indices as a single row with four columns rounded to "
             "4 decimal places: margalef, menhinick, fisher_alpha and kempton_taylor."
         ),
-        "reference_sql": (
-            "SELECT round(skbio.diversity.margalef(count), 4) AS margalef, "
-            "round(skbio.diversity.menhinick(count), 4) AS menhinick, "
-            "round(skbio.diversity.fisher_alpha(count), 4) AS fisher_alpha, "
-            "round(skbio.diversity.kempton_taylor_q(count), 4) AS kempton_taylor "
-            f"FROM {_D_COUNTS}"
-        ),
     },
     {
         "name": "coverage_metrics",
@@ -529,13 +379,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "the community has been observed? Return a single row with four columns rounded to 4 "
             "decimal places: goods_coverage, robbins, esty_lower and esty_upper (the lower and "
             "upper bounds of Esty's coverage confidence interval)."
-        ),
-        "reference_sql": (
-            "SELECT round(skbio.diversity.goods_coverage(count), 4) AS goods_coverage, "
-            "round(skbio.diversity.robbins(count), 4) AS robbins, "
-            "round(skbio.diversity.esty_ci(count)[1], 4) AS esty_lower, "
-            "round(skbio.diversity.esty_ci(count)[2], 4) AS esty_upper "
-            f"FROM {_D_COUNTS}"
         ),
     },
     # --- beta / phylogenetic diversity ------------------------------------
@@ -547,11 +390,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "distance matrix. How many rows does the full matrix have? Return a single row with "
             "one column named n."
         ),
-        "reference_sql": (
-            "SELECT count(*) AS n FROM skbio.diversity.beta_diversity((SELECT * FROM "
-            "(VALUES ('s1','a',4),('s1','b',1),('s2','a',3),('s2','b',2),('s3','a',0),('s3','b',9)) "
-            "AS t(sample_id, feature_id, count)))"
-        ),
     },
     {
         "name": "faith_pd",
@@ -559,10 +397,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             f"Given the feature table {_P_TREE_TABLE} as (sample_id, feature_id, count) and the "
             f"tree '{_D_TREE}', compute Faith's phylogenetic diversity of each sample, rounded to "
             "4 decimals. Return columns sample_id and faith_pd, ordered by sample_id."
-        ),
-        "reference_sql": (
-            "SELECT sample_id, round(faith_pd, 4) AS faith_pd FROM skbio.diversity.faith_pd("
-            f"(SELECT * FROM {_D_TREE_TABLE}), tree := '{_D_TREE}') ORDER BY sample_id"
         ),
     },
     {
@@ -574,11 +408,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "alphabetically smaller id first). Return columns id_1, id_2 and distance rounded to "
             "4 decimals, ordered by id_1 then id_2."
         ),
-        "reference_sql": (
-            "SELECT id_1, id_2, round(distance, 4) AS distance FROM skbio.diversity.unifrac("
-            f"(SELECT * FROM {_D_TREE_TABLE}), tree := '{_D_TREE}') "
-            "WHERE id_1 < id_2 ORDER BY id_1, id_2"
-        ),
     },
     {
         "name": "rarefaction",
@@ -587,11 +416,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "(s2,'c',5) as (sample_id, feature_id, count) to a common depth of 8 counts per "
             "sample, using the default seed. Return the rarefied table with columns sample_id, "
             "feature_id and count, ordered by sample_id then feature_id."
-        ),
-        "reference_sql": (
-            "SELECT sample_id, feature_id, count FROM skbio.diversity.subsample_counts((SELECT * FROM "
-            "(VALUES ('s1','a',4),('s1','b',2),('s1','c',6),('s2','a',10),('s2','b',5),('s2','c',5)) "
-            "AS t(sample_id, feature_id, count)), depth := 8) ORDER BY sample_id, feature_id"
         ),
     },
     # --- ordination -------------------------------------------------------
@@ -602,11 +426,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Bray-Curtis distance matrix and embed the samples on 2 principal coordinate axes. "
             "Return columns sample_id and pc_1 rounded to 4 decimals, ordered by sample_id."
         ),
-        "reference_sql": (
-            "SELECT sample_id, round(pc_1, 4) AS pc_1 FROM skbio.stats.pcoa("
-            f"(SELECT * FROM skbio.diversity.beta_diversity((SELECT * FROM {_D_FEATURES}))), "
-            "n_components := 2) ORDER BY sample_id"
-        ),
     },
     {
         "name": "pca_scores",
@@ -616,10 +435,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "with 2 components. Return columns sample_id and pc_1 rounded to 4 decimals, ordered "
             "by sample_id."
         ),
-        "reference_sql": (
-            "SELECT sample_id, round(pc_1, 4) AS pc_1 FROM skbio.stats.pca("
-            f"(SELECT * FROM {_D_FEATURES}), n_components := 2) ORDER BY sample_id"
-        ),
     },
     {
         "name": "correspondence_analysis",
@@ -627,10 +442,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             f"Given the long count table {_P_FEATURES} as (sample_id, feature_id, value), run a "
             "correspondence analysis with 2 axes. Return columns sample_id and ca_1 rounded to 4 "
             "decimals, ordered by sample_id."
-        ),
-        "reference_sql": (
-            "SELECT sample_id, round(ca_1, 4) AS ca_1 FROM skbio.stats.ca("
-            f"(SELECT * FROM {_D_FEATURES}), n_components := 2) ORDER BY sample_id"
         ),
     },
     # --- distance-matrix hypothesis tests ---------------------------------
@@ -643,10 +454,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "statistic rounded to 4 decimals, and n_groups, the number of distinct groups. Do not "
             "report the p-value (it is permutation-based and not reproducible)."
         ),
-        "reference_sql": (
-            "SELECT round(test_statistic, 4) AS pseudo_f, number_of_groups AS n_groups "
-            f"FROM skbio.stats.permanova({_D_GROUPED_INPUT})"
-        ),
     },
     {
         "name": "anosim_statistic",
@@ -656,9 +463,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "a single row with two columns: r_statistic, the ANOSIM R rounded to 4 decimals, and "
             "sample_size, the number of samples. Do not report the p-value (it is "
             "permutation-based and not reproducible)."
-        ),
-        "reference_sql": (
-            f"SELECT round(test_statistic, 4) AS r_statistic, sample_size FROM skbio.stats.anosim({_D_GROUPED_INPUT})"
         ),
     },
     {
@@ -671,11 +475,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "samples compared. Do not report the p-value (it is permutation-based and not "
             "reproducible)."
         ),
-        "reference_sql": (
-            "SELECT round(correlation, 4) AS correlation, n FROM skbio.stats.mantel((SELECT * FROM "
-            "(VALUES ('a','b',0.5,0.4),('a','c',0.7,0.9),('b','c',0.6,0.5)) "
-            "AS d(id_1, id_2, distance_x, distance_y)))"
-        ),
     },
     # --- compositional transforms -----------------------------------------
     {
@@ -686,11 +485,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "proportions. Return columns sample_id, feature and value rounded to 4 decimals, "
             "ordered by sample_id then feature."
         ),
-        "reference_sql": (
-            "SELECT sample_id, feature, round(value, 4) AS value FROM skbio.stats.clr_inv("
-            f"(SELECT * FROM skbio.stats.clr((SELECT * FROM {_D_COMPOSITION})))) "
-            "ORDER BY sample_id, feature"
-        ),
     },
     {
         "name": "ilr_round_trip",
@@ -699,11 +493,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "apply the isometric log-ratio transform and then invert it back to a composition. "
             "Return columns sample_id, feature and value rounded to 4 decimals, ordered by "
             "sample_id then feature."
-        ),
-        "reference_sql": (
-            "SELECT sample_id, feature, round(value, 4) AS value FROM skbio.stats.ilr_inv("
-            f"(SELECT * FROM skbio.stats.ilr((SELECT * FROM {_D_COMPOSITION})))) "
-            "ORDER BY sample_id, feature"
         ),
     },
     {
@@ -714,11 +503,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "invert it back to a composition. Return columns sample_id, feature and value rounded "
             "to 4 decimals, ordered by sample_id then feature."
         ),
-        "reference_sql": (
-            "SELECT sample_id, feature, round(value, 4) AS value FROM skbio.stats.alr_inv("
-            f"(SELECT * FROM skbio.stats.alr((SELECT * FROM {_D_COMPOSITION})))) "
-            "ORDER BY sample_id, feature"
-        ),
     },
     {
         "name": "normalise_composition",
@@ -726,11 +510,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             f"Given the long feature table {_P_COMPOSITION} as (sample_id, feature_id, value), "
             "rescale each sample's parts so they sum to 1. Return columns sample_id, feature_id "
             "and proportion rounded to 4 decimals, ordered by sample_id then feature_id."
-        ),
-        "reference_sql": (
-            "SELECT sample_id, feature_id, round(proportion, 4) AS proportion "
-            f"FROM skbio.stats.closure((SELECT * FROM {_D_COMPOSITION})) "
-            "ORDER BY sample_id, feature_id"
         ),
     },
     {
@@ -740,11 +519,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "centre each sample's composition on the dataset's geometric mean. Return columns "
             "sample_id, feature_id and centered rounded to 4 decimals, ordered by sample_id then "
             "feature_id."
-        ),
-        "reference_sql": (
-            "SELECT sample_id, feature_id, round(centered, 4) AS centered "
-            f"FROM skbio.stats.centralize((SELECT * FROM {_D_COMPOSITION})) "
-            "ORDER BY sample_id, feature_id"
         ),
     },
     {
@@ -756,12 +530,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "Return columns sample_id, feature_id and value rounded to 4 decimals, ordered by "
             "sample_id then feature_id."
         ),
-        "reference_sql": (
-            "SELECT sample_id, feature_id, round(value, 4) AS value "
-            "FROM skbio.stats.multi_replace((SELECT * FROM "
-            "(VALUES ('s1','a',0),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',0),('s2','c',6)) "
-            "AS t(sample_id, feature_id, value))) ORDER BY sample_id, feature_id"
-        ),
     },
     {
         "name": "robust_clr",
@@ -771,12 +539,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "transform, which handles the zeros without a pseudocount. Return columns sample_id, "
             "feature_id and rclr rounded to 4 decimals, ordered by sample_id then feature_id."
         ),
-        "reference_sql": (
-            "SELECT sample_id, feature_id, round(rclr, 4) AS rclr "
-            "FROM skbio.stats.rclr((SELECT * FROM "
-            "(VALUES ('s1','a',0),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',0),('s2','c',6)) "
-            "AS t(sample_id, feature_id, value))) ORDER BY sample_id, feature_id"
-        ),
     },
     {
         "name": "power_transform",
@@ -785,11 +547,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "apply the compositional power transform with an exponent of 2 (square each part of "
             "the closed composition and re-close it). Return columns sample_id, feature_id and "
             "value rounded to 4 decimals, ordered by sample_id then feature_id."
-        ),
-        "reference_sql": (
-            "SELECT sample_id, feature_id, round(value, 4) AS value "
-            f"FROM skbio.stats.power((SELECT * FROM {_D_COMPOSITION}), power := 2.0) "
-            "ORDER BY sample_id, feature_id"
         ),
     },
     {
@@ -802,13 +559,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "feature_1, feature_2 and vlr rounded to 4 decimals, ordered by feature_1 then "
             "feature_2."
         ),
-        "reference_sql": (
-            "SELECT feature_1, feature_2, round(vlr, 4) AS vlr FROM skbio.stats.pairwise_vlr("
-            "(SELECT * FROM "
-            "(VALUES ('s1','a',1),('s1','b',2),('s1','c',3),('s2','a',4),('s2','b',5),('s2','c',6),"
-            "('s3','a',2),('s3','b',1),('s3','c',7)) AS t(sample_id, feature_id, value))) "
-            "WHERE feature_1 < feature_2 ORDER BY feature_1, feature_2"
-        ),
     },
     {
         "name": "ancom_differential_abundance",
@@ -816,9 +566,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             f"A two-group count table is given as (sample_id, feature_id, count): {_P_DIFF_COUNTS}, "
             f"where {_P_DIFF_GROUPS}. Run the ANCOM differential-abundance test. Return one row "
             "per feature with columns feature_id, w and significant, ordered by feature_id."
-        ),
-        "reference_sql": (
-            f"SELECT feature_id, w, significant FROM skbio.stats.ancom({_D_DIFF_INPUT}) ORDER BY feature_id"
         ),
     },
     {
@@ -829,10 +576,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "abundance. Return one row per feature with columns feature_id, log2_fold_change "
             "rounded to 4 decimals, and significant, ordered by feature_id."
         ),
-        "reference_sql": (
-            "SELECT feature_id, round(log2_fold_change, 4) AS log2_fold_change, significant "
-            f"FROM skbio.stats.dirmult_ttest({_D_DIFF_INPUT}) ORDER BY feature_id"
-        ),
     },
     # --- trees ------------------------------------------------------------
     {
@@ -841,7 +584,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "How many tips (leaves) are in the Newick tree '((a:2,b:3):3,d:4,c:4);'? "
             "Return a single row with one column named tips."
         ),
-        "reference_sql": "SELECT skbio.tree.tip_count('((a:2,b:3):3,d:4,c:4);') AS tips",
     },
     {
         "name": "neighbor_joining_tree",
@@ -849,10 +591,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             f"Build a neighbour-joining tree from the distance matrix {_P_DISTANCES} given as "
             "(id_1, id_2, distance). Return a single row with two columns: newick, the tree in "
             "Newick format, and tips, the number of tips in it."
-        ),
-        "reference_sql": (
-            "SELECT newick, skbio.tree.tip_count(newick) AS tips "
-            f"FROM skbio.tree.neighbor_joining((SELECT * FROM {_D_DISTANCES}))"
         ),
     },
     {
@@ -863,11 +601,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "rounded to 4 decimal places: total_length, the sum of all its branch lengths, and "
             "height, its maximum root-to-tip distance."
         ),
-        "reference_sql": (
-            "SELECT round(skbio.tree.total_branch_length(newick), 4) AS total_length, "
-            "round(skbio.tree.tree_height(newick), 4) AS height "
-            f"FROM skbio.tree.upgma((SELECT * FROM {_D_DISTANCES}))"
-        ),
     },
     {
         "name": "minimum_evolution_topologies_agree",
@@ -877,11 +610,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "compare them. Return a single row with one column named rf_distance holding the "
             "Robinson-Foulds distance between the two topologies."
         ),
-        "reference_sql": (
-            "SELECT skbio.tree.robinson_foulds(g.newick, b.newick) AS rf_distance FROM "
-            f"skbio.tree.gme((SELECT * FROM {_D_DISTANCES})) AS g, "
-            f"skbio.tree.bme((SELECT * FROM {_D_DISTANCES})) AS b"
-        ),
     },
     {
         "name": "branch_length_aware_tree_comparison",
@@ -890,12 +618,6 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "'((a:1,c:1):5,(b:1,d:1):5);' in the two branch-length-aware ways. Return a single "
             "row with two columns rounded to 4 decimal places: wrf, their weighted "
             "Robinson-Foulds distance, and cophenetic, their cophenetic distance."
-        ),
-        "reference_sql": (
-            "SELECT round(skbio.tree.weighted_robinson_foulds("
-            "'((a:1,b:1):1,(c:1,d:1):1);', '((a:1,c:1):5,(b:1,d:1):5);'), 4) AS wrf, "
-            "round(skbio.tree.cophenetic_distance("
-            "'((a:1,b:1):1,(c:1,d:1):1);', '((a:1,c:1):5,(b:1,d:1):5);'), 4) AS cophenetic"
         ),
     },
 ]
@@ -909,7 +631,12 @@ _CATALOG_TAGS = {
     "vgi.license": "MIT",
     "vgi.support_contact": f"{SOURCE_URL}/issues",
     "vgi.support_policy_url": f"{SOURCE_URL}/blob/main/SUPPORT.md",
-    "vgi.title": "scikit-bio for SQL",
+    # A short display name (VGI147) plus one sentence of listing copy (VGI148).
+    "vgi.title": "scikit-bio",
+    "vgi.subtitle": (
+        "Bioinformatics functions for sequence analysis, alignment, microbial diversity, "
+        "ordination and phylogenetic trees."
+    ),
     "vgi.keywords": json.dumps(
         [
             "scikit-bio",
@@ -927,7 +654,8 @@ _CATALOG_TAGS = {
         ]
     ),
     "vgi.executable_examples": _CATALOG_EXECUTABLE_EXAMPLES,
-    # Analyst tasks for `vgi-lint simulate` -- see _AGENT_TEST_TASKS above.
+    # Analyst tasks for `vgi-lint simulate` -- see _AGENT_TEST_TASKS above; the
+    # graders are in vgi-agent-tests.yaml.
     "vgi.agent_test_tasks": json.dumps(_AGENT_TEST_TASKS),
 }
 
