@@ -7,7 +7,7 @@ require-env VGI_SCIKIT_BIO_WORKER
 require vgi
 
 statement ok
-ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
+ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '{VGI_SCIKIT_BIO_WORKER}');
 
 # ============================================================================
 # PCoA over a long distance matrix

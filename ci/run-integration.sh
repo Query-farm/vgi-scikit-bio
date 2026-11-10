@@ -43,7 +43,9 @@ cat > "$STAGE/test/_warm.test" <<'EOF'
 statement ok
 INSTALL vgi FROM community;
 EOF
-"$HAYBARN_UNITTEST" "test/_warm.test" >/dev/null 2>&1 || echo "::warning::extension warm step did not fully succeed"
+# haybarn-unittest 2.0 isolates $HOME per run; --keep-home keeps the real home so
+# the warmed extension cache is shared by the suite run below.
+"$HAYBARN_UNITTEST" --keep-home "test/_warm.test" >/dev/null 2>&1 || echo "::warning::extension warm step did not fully succeed"
 rm -f "$STAGE/test/_warm.test"
 
 # Run the suite in one invocation, streaming the runner's native sqllogictest
@@ -51,4 +53,4 @@ rm -f "$STAGE/test/_warm.test"
 # defaults to the whole suite; override it (e.g. one file) for a quick smoke.
 TEST_PATTERN="${TEST_PATTERN:-test/sql/*}"
 echo "Running suite (pattern: $TEST_PATTERN, worker: $VGI_SCIKIT_BIO_WORKER) ..."
-"$HAYBARN_UNITTEST" "$TEST_PATTERN"
+"$HAYBARN_UNITTEST" --keep-home "$TEST_PATTERN"

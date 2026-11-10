@@ -8,12 +8,12 @@ require vgi
 
 # The worker advertises exactly one catalog named `skbio`
 query I
-SELECT catalog FROM vgi_catalogs('${VGI_SCIKIT_BIO_WORKER}');
+SELECT catalog FROM vgi_catalogs('{VGI_SCIKIT_BIO_WORKER}');
 ----
 skbio
 
 statement ok
-ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '${VGI_SCIKIT_BIO_WORKER}');
+ATTACH 'skbio' AS skbio (TYPE vgi, LOCATION '{VGI_SCIKIT_BIO_WORKER}');
 
 # Five schemas: sequence (default), alignment, diversity, stats, tree
 query I
