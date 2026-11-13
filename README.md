@@ -17,9 +17,9 @@ aggregate, and table functions.
 ```sql
 INSTALL vgi FROM community; LOAD vgi;
 
--- Attach with zero local install — from PyPI via uvx, or from ghcr via oci://
-ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx vgi-scikit-bio');
--- ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.1.0');
+-- Attach with zero local install — from the GitHub release via uvx, or from ghcr via oci://
+ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-scikit-bio@v0.3.0 vgi-scikit-bio');
+-- ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.3.0');
 
 SELECT skbio.sequence.gc_content('ATGCGGATTACAGG');            -- 0.5
 SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG');    -- CCTGTAATCCGCAT
@@ -59,22 +59,21 @@ INSTALL vgi FROM community;
 LOAD vgi;
 ```
 
-**Zero-install from PyPI (`uvx`)** — recommended for a laptop with `uv`:
+**Zero-install from a GitHub release (`uvx`)** — recommended for a laptop with `uv`:
 
 ```sql
-ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx vgi-scikit-bio');
+ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-scikit-bio@v0.3.0 vgi-scikit-bio');
 SELECT skbio.sequence.gc_content('ATGCGGATTACAGG');   -- 0.5
 ```
 
-`uvx` downloads [`vgi-scikit-bio`](https://pypi.org/project/vgi-scikit-bio/) from
-PyPI into a cache and runs its stdio console script; the first attach resolves
+The worker isn't on PyPI. `uvx` builds the tagged release from GitHub into a cache and runs its stdio console script; the first attach resolves
 the package, later ones are instant.
 
 **Container from ghcr (`oci://`)** — recommended when you'd rather not touch
 Python at all (just needs Docker or Podman):
 
 ```sql
-ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.1.0');
+ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.3.0');
 ```
 
 The extension turns the `oci://` address into a pooled `docker run -i --rm …
@@ -82,7 +81,7 @@ stdio` and keeps the container warm across queries. Use `:latest` to track the
 newest release, or `docker://…` (an alias). A struct `LOCATION` adds options —
 `{'image': 'oci://…', 'runtime': 'podman', 'volumes': ['skbio_state:/data']}`.
 
-**Installed console script** — if you `pip install vgi-scikit-bio`, the
+**Installed console script** — if you `uv tool install git+https://github.com/Query-farm/vgi-scikit-bio@v0.3.0`, the
 `vgi-scikit-bio` (stdio) and `vgi-scikit-bio-http` (HTTP) scripts are on `PATH`:
 
 ```sql
@@ -99,7 +98,7 @@ ATTACH 'skbio' (TYPE vgi, LOCATION 'uv run scikit_bio_worker.py');
 `vgi-scikit-bio-http`) and attach over its URL:
 
 ```sh
-docker run -d -p 8000:8000 -e VGI_SIGNING_KEY=change-me ghcr.io/query-farm/vgi-scikit-bio:0.1.0
+docker run -d -p 8000:8000 -e VGI_SIGNING_KEY=change-me ghcr.io/query-farm/vgi-scikit-bio:0.3.0
 ```
 ```sql
 ATTACH 'skbio' (TYPE vgi, LOCATION 'http://localhost:8000');
