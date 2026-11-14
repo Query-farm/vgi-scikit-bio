@@ -1,0 +1,1635 @@
+{
+  "schema_version": 1,
+  "catalogs": {
+    "released": {
+      "path": "coverage/catalog-released.json",
+      "sha256": "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "catalog_sha256": "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+        "notes": "Complete actual native functions, tables and views exports across all five public schemas reconcile to 90 distinct names. All overloads retained and deduplicated by schema/name. Current runtime independently captured at public main; differences from v0.3.0 are added metadata/composed examples, and named signatures agree. Notebook receipts retain the released runtime revision; exact-current analytical execution is not claimed."
+      }
+    },
+    "current": {
+      "path": "coverage/catalog-current.json",
+      "sha256": "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050",
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "catalog_sha256": "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050",
+        "notes": "Complete actual native functions, tables and views exports across all five public schemas reconcile to 90 distinct names. All overloads retained and deduplicated by schema/name. Current runtime independently captured at public main; differences from v0.3.0 are added metadata/composed examples, and named signatures agree. Notebook receipts retain the released runtime revision; exact-current analytical execution is not claimed."
+      }
+    }
+  },
+  "notebooks": [
+    {
+      "path": "01_same_proportions_different_counts.ipynb",
+      "sha256": "ba28caa686dcb95b07da82a800286cceb1c10117a60dcb8fc80e8f0d8ed0339f",
+      "execution": {
+        "path": "coverage/run-01.json",
+        "sha256": "58c16b5c9528176f5121a2157b5613b228e0014a0d0c690031892d376ccf9df5"
+      }
+    },
+    {
+      "path": "02_orientation_before_composition.ipynb",
+      "sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+      "execution": {
+        "path": "coverage/run-02.json",
+        "sha256": "9e17b34549e60e7f1422f957878d25151ceba83645ddc319a22fbbf1ff02d694"
+      }
+    },
+    {
+      "path": "03_comparison_depends_on_representation.ipynb",
+      "sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+      "execution": {
+        "path": "coverage/run-03.json",
+        "sha256": "70028d166bbf488a13f136349548557ebc4da3f35fcbb3866695a3307f41e08f"
+      }
+    },
+    {
+      "path": "04_coordinates_do_not_recover_totals.ipynb",
+      "sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+      "execution": {
+        "path": "coverage/run-04.json",
+        "sha256": "784b89097615a9cf9ddf64a067c735fc8ecc364fd6487d5aab30ba5d885f1c3c"
+      }
+    },
+    {
+      "path": "05_tree_scale_is_not_topology.ipynb",
+      "sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+      "execution": {
+        "path": "coverage/run-05.json",
+        "sha256": "54428ee73aa5b3edcd73b032738bc9e15508311e73dbb1aed43909e57e4975ab"
+      }
+    }
+  ],
+  "examples": [
+    {
+      "object": {
+        "schema": "diversity",
+        "name": "observed_features"
+      },
+      "notebook": "01_same_proportions_different_counts.ipynb",
+      "sql": [
+        {
+          "cell": "e8a841f5",
+          "reference": "skbio.diversity.observed_features"
+        }
+      ],
+      "narrative_cells": [
+        "16bad281"
+      ],
+      "result_cells": [
+        "134d9525"
+      ],
+      "interpretation_cells": [
+        "134d9525"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ba28caa686dcb95b07da82a800286cceb1c10117a60dcb8fc80e8f0d8ed0339f",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use diversity.observed_features in the focused analytical question of notebook 01, with the returned values displayed and reconciled.",
+        "finding": "Richness counts positive features, retaining explicit zeros in the input. A_base and B_scaled both have four observed features under uniform count scaling."
+      }
+    },
+    {
+      "object": {
+        "schema": "diversity",
+        "name": "shannon"
+      },
+      "notebook": "01_same_proportions_different_counts.ipynb",
+      "sql": [
+        {
+          "cell": "e8a841f5",
+          "reference": "skbio.diversity.shannon"
+        }
+      ],
+      "narrative_cells": [
+        "16bad281"
+      ],
+      "result_cells": [
+        "134d9525"
+      ],
+      "interpretation_cells": [
+        "134d9525"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ba28caa686dcb95b07da82a800286cceb1c10117a60dcb8fc80e8f0d8ed0339f",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use diversity.shannon in the focused analytical question of notebook 01, with the returned values displayed and reconciled.",
+        "finding": "Natural-log entropy is independently reconstructed from worker proportions. Equal composition and rescaling preserve Shannon entropy; feature relabeling can also preserve this summary."
+      }
+    },
+    {
+      "object": {
+        "schema": "diversity",
+        "name": "hill"
+      },
+      "notebook": "01_same_proportions_different_counts.ipynb",
+      "sql": [
+        {
+          "cell": "e8a841f5",
+          "reference": "skbio.diversity.hill"
+        }
+      ],
+      "narrative_cells": [
+        "16bad281"
+      ],
+      "result_cells": [
+        "134d9525"
+      ],
+      "interpretation_cells": [
+        "134d9525"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ba28caa686dcb95b07da82a800286cceb1c10117a60dcb8fc80e8f0d8ed0339f",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use diversity.hill in the focused analytical question of notebook 01, with the returned values displayed and reconciled.",
+        "finding": "Order-one Hill diversity equals exp(Shannon); SQL/presentation checks the relation and bounds it between one and observed richness. Effective-feature units differ from entropy units."
+      }
+    },
+    {
+      "object": {
+        "schema": "stats",
+        "name": "closure"
+      },
+      "notebook": "01_same_proportions_different_counts.ipynb",
+      "sql": [
+        {
+          "cell": "e8a841f5",
+          "reference": "skbio.stats.closure"
+        }
+      ],
+      "narrative_cells": [
+        "908da8ae"
+      ],
+      "result_cells": [
+        "134d9525"
+      ],
+      "interpretation_cells": [
+        "4df2b1a0"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ba28caa686dcb95b07da82a800286cceb1c10117a60dcb8fc80e8f0d8ed0339f",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use stats.closure in the focused analytical question of notebook 01, with the returned values displayed and reconciled.",
+        "finding": "All 30 proportions are reconciled with original count divided by sample total. Closed Bray\u2013Curtis is zero for a uniformly scaled duplicate even when raw distance is nonzero."
+      }
+    },
+    {
+      "object": {
+        "schema": "diversity",
+        "name": "beta_diversity"
+      },
+      "notebook": "01_same_proportions_different_counts.ipynb",
+      "sql": [
+        {
+          "cell": "284c5d05",
+          "reference": "skbio.diversity.beta_diversity"
+        }
+      ],
+      "narrative_cells": [
+        "908da8ae"
+      ],
+      "result_cells": [
+        "4df2b1a0"
+      ],
+      "interpretation_cells": [
+        "4df2b1a0"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ba28caa686dcb95b07da82a800286cceb1c10117a60dcb8fc80e8f0d8ed0339f",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use diversity.beta_diversity in the focused analytical question of notebook 01, with the returned values displayed and reconciled.",
+        "finding": "Both complete six-sample Bray\u2013Curtis matrices are reconstructed in SQL. The scaled duplicate has raw distance 1/2 at multiplier 3 and 7/9 at 8, while its proportion distance remains zero."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "is_valid_dna"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "quality-sql",
+          "reference": "skbio.sequence.is_valid_dna"
+        }
+      ],
+      "narrative_cells": [
+        "quality-question"
+      ],
+      "result_cells": [
+        "quality-sql"
+      ],
+      "interpretation_cells": [
+        "quality-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.is_valid_dna in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "All six records stay in the audit; valid DNA can contain a gap or ambiguity symbol. Missing remains unknown and malformed input is false."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "has_gaps"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "quality-sql",
+          "reference": "skbio.sequence.has_gaps"
+        }
+      ],
+      "narrative_cells": [
+        "quality-question"
+      ],
+      "result_cells": [
+        "quality-sql"
+      ],
+      "interpretation_cells": [
+        "quality-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.has_gaps in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "The gapped row is distinguished from ungapped valid strings before an explicit coordinate-changing gap removal."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "has_degenerates"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "quality-sql",
+          "reference": "skbio.sequence.has_degenerates"
+        }
+      ],
+      "narrative_cells": [
+        "quality-question"
+      ],
+      "result_cells": [
+        "quality-sql"
+      ],
+      "interpretation_cells": [
+        "quality-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.has_degenerates in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "The N-containing row is valid but ambiguous and excluded from definite-base profiles, without inventing its missing base."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "degap"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "quality-sql",
+          "reference": "skbio.sequence.degap"
+        }
+      ],
+      "narrative_cells": [
+        "quality-question"
+      ],
+      "result_cells": [
+        "quality-sql"
+      ],
+      "interpretation_cells": [
+        "quality-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.degap in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "The gapped string becomes the authored forward string and is included in the three eligible representations; the input audit retains its original form."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "complement"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.complement"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "transform-sql"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.complement in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "The complement string is displayed beside the reverse complement to distinguish base substitution from reversing order."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "reverse_complement"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.reverse_complement"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "transform-sql"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.reverse_complement in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "The authored reverse row is verified and k-mer reverse complements define the explicit strand-collapsed profile keys."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "is_reverse_complement"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.is_reverse_complement"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "transform-sql"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.is_reverse_complement in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "The reverse row is identified as the reverse complement of the fixed forward input; this is a representation check, not biological identity."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "transcribe"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.transcribe"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "transform-sql"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.transcribe in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "The RNA representation is displayed for each eligible string; T-to-U transcription is separate from strand reversal."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "reverse_transcribe"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.reverse_transcribe"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "transform-sql"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.reverse_transcribe in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "Every displayed RNA returns to its original gapless DNA in an explicit round-trip invariant."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "gc_frequency"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.gc_frequency"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "transform-sql"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.gc_frequency in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "Each eligible string has seven G/C bases, independently reconstructed by summing G and C residue counts."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "gc_content"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.gc_content"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "transform-sql"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.gc_content in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "Each eligible representation has GC fraction 7/15, reconstructed from raw GC counts and complete string length."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "count_subsequence"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.count_subsequence"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "transform-sql"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.count_subsequence in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "The literal ATG motif occurs once in forward/gapless strings and zero times in the reverse string despite equal GC. This is not gene annotation."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "residue_frequencies"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "transform-sql",
+          "reference": "skbio.sequence.residue_frequencies"
+        }
+      ],
+      "narrative_cells": [
+        "transform-question"
+      ],
+      "result_cells": [
+        "composition-finding"
+      ],
+      "interpretation_cells": [
+        "composition-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.residue_frequencies in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "All base-count rows sum to the complete length of 15; G+C residue totals independently agree with the two GC scalar outputs."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "kmer_frequencies"
+      },
+      "notebook": "02_orientation_before_composition.ipynb",
+      "sql": [
+        {
+          "cell": "kmers-sql",
+          "reference": "skbio.sequence.kmer_frequencies"
+        }
+      ],
+      "narrative_cells": [
+        "kmers-question"
+      ],
+      "result_cells": [
+        "kmers-finding"
+      ],
+      "interpretation_cells": [
+        "kmers-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.kmer_frequencies in the focused analytical question of notebook 02, with the returned values displayed and reconciled.",
+        "finding": "Overlapping windows reconcile with length minus k plus one. Complete pairwise shared-mass matrices retain zero overlaps and show the effect of oriented versus reverse-complement-collapsed profiles."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "hamming_distance"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "positions-sql",
+          "reference": "skbio.sequence.hamming_distance"
+        }
+      ],
+      "narrative_cells": [
+        "positions-question"
+      ],
+      "result_cells": [
+        "positions-sql"
+      ],
+      "interpretation_cells": [
+        "positions-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.hamming_distance in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "One mismatch in 15 positions gives 1/15; unequal-length deletion/flank comparisons stay NULL rather than being called identical."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "mismatch_count"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "positions-sql",
+          "reference": "skbio.sequence.mismatch_count"
+        }
+      ],
+      "narrative_cells": [
+        "positions-question"
+      ],
+      "result_cells": [
+        "positions-sql"
+      ],
+      "interpretation_cells": [
+        "positions-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.mismatch_count in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "Two authored substitutions each have one positional base mismatch but different translated-string equality."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "match_count"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "positions-sql",
+          "reference": "skbio.sequence.match_count"
+        }
+      ],
+      "narrative_cells": [
+        "positions-question"
+      ],
+      "result_cells": [
+        "positions-sql"
+      ],
+      "interpretation_cells": [
+        "positions-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.match_count in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "Matches plus mismatches reconstruct the full equal-length input; unequal lengths remain unavailable."
+      }
+    },
+    {
+      "object": {
+        "schema": "alignment",
+        "name": "align_score_nucleotide"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "positions-sql",
+          "reference": "skbio.alignment.align_score_nucleotide"
+        }
+      ],
+      "narrative_cells": [
+        "alignment-question"
+      ],
+      "result_cells": [
+        "alignment-finding"
+      ],
+      "interpretation_cells": [
+        "alignment-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use alignment.align_score_nucleotide in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "Fixed global scalar scores agree with global alignment-table scores. Selected local mode may change span and score, without changing the scalar reference. Nucleotide defaults also change match/mismatch weights from +1/-2 to +2/-3, explicitly separating span changes from scoring-objective changes."
+      }
+    },
+    {
+      "object": {
+        "schema": "alignment",
+        "name": "pairwise_align_nucleotide"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "alignment-sql",
+          "reference": "skbio.alignment.pairwise_align_nucleotide"
+        }
+      ],
+      "narrative_cells": [
+        "alignment-question"
+      ],
+      "result_cells": [
+        "alignment-finding"
+      ],
+      "interpretation_cells": [
+        "alignment-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use alignment.pairwise_align_nucleotide in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "Actual aligned strings and lengths are displayed for all five pairs. Global terminal-gap behavior and local subregion selection remain explicit."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "translate"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "translation-sql",
+          "reference": "skbio.sequence.translate"
+        }
+      ],
+      "narrative_cells": [
+        "translation-question"
+      ],
+      "result_cells": [
+        "translation-finding"
+      ],
+      "interpretation_cells": [
+        "translation-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.translate in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "The stipulated standard-code frame maps synonymous and unchanged DNA to MRITK while the other one-base variant yields MRIPK; the codon deletion yields MITK."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "is_valid_protein"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "translation-sql",
+          "reference": "skbio.sequence.is_valid_protein"
+        }
+      ],
+      "narrative_cells": [
+        "translation-question"
+      ],
+      "result_cells": [
+        "translation-finding"
+      ],
+      "interpretation_cells": [
+        "translation-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.is_valid_protein in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "Translated strings pass alphabet validation, but the displayed ACGT control also passes, while malformed and missing controls remain false/unknown. Alphabet validity does not identify molecular type."
+      }
+    },
+    {
+      "object": {
+        "schema": "alignment",
+        "name": "align_score_protein"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "translation-sql",
+          "reference": "skbio.alignment.align_score_protein"
+        }
+      ],
+      "narrative_cells": [
+        "translation-question"
+      ],
+      "result_cells": [
+        "translation-finding"
+      ],
+      "interpretation_cells": [
+        "translation-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use alignment.align_score_protein in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "Protein scalar scores reconcile with global protein table scores and are kept in separate units from nucleotide scores."
+      }
+    },
+    {
+      "object": {
+        "schema": "alignment",
+        "name": "pairwise_align_protein"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "translation-sql",
+          "reference": "skbio.alignment.pairwise_align_protein"
+        }
+      ],
+      "narrative_cells": [
+        "translation-question"
+      ],
+      "result_cells": [
+        "translation-finding"
+      ],
+      "interpretation_cells": [
+        "translation-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use alignment.pairwise_align_protein in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "The four frame-specified protein pairs retain aligned strings, selected score and aligned length. Mode changes are interpreted as comparison changes, not functional-effect predictions."
+      }
+    },
+    {
+      "object": {
+        "schema": "sequence",
+        "name": "translate_six_frames"
+      },
+      "notebook": "03_comparison_depends_on_representation.ipynb",
+      "sql": [
+        {
+          "cell": "frames-sql",
+          "reference": "skbio.sequence.translate_six_frames"
+        }
+      ],
+      "narrative_cells": [
+        "frames-question"
+      ],
+      "result_cells": [
+        "frames-sql"
+      ],
+      "interpretation_cells": [
+        "checks-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "0556c79d84ca0a2804b04b5cf2c7d010e6d2bde5d8ae1c7e121fb89dfbd1860c",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use sequence.translate_six_frames in the focused analytical question of notebook 03, with the returned values displayed and reconciled.",
+        "finding": "All six frame candidates, lengths and stop-symbol counts are displayed for the fixed reference; +1 matches the stipulated translation. Enumeration does not select a true gene."
+      }
+    },
+    {
+      "object": {
+        "schema": "stats",
+        "name": "clr"
+      },
+      "notebook": "04_coordinates_do_not_recover_totals.ipynb",
+      "sql": [
+        {
+          "cell": "coordinates-sql",
+          "reference": "skbio.stats.clr"
+        }
+      ],
+      "narrative_cells": [
+        "coordinates-question"
+      ],
+      "result_cells": [
+        "coordinates-finding"
+      ],
+      "interpretation_cells": [
+        "coordinates-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use stats.clr in the focused analytical question of notebook 04, with the returned values displayed and reconciled.",
+        "finding": "Twelve natural-log coordinates have per-sample sum zero and match log-part minus mean log-part in SQL."
+      }
+    },
+    {
+      "object": {
+        "schema": "stats",
+        "name": "ilr"
+      },
+      "notebook": "04_coordinates_do_not_recover_totals.ipynb",
+      "sql": [
+        {
+          "cell": "coordinates-sql",
+          "reference": "skbio.stats.ilr"
+        }
+      ],
+      "narrative_cells": [
+        "coordinates-question"
+      ],
+      "result_cells": [
+        "coordinates-finding"
+      ],
+      "interpretation_cells": [
+        "coordinates-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use stats.ilr in the focused analytical question of notebook 04, with the returned values displayed and reconciled.",
+        "finding": "Eight orthonormal coordinates preserve each CLR squared norm. Component indices are explicitly not feature identities."
+      }
+    },
+    {
+      "object": {
+        "schema": "stats",
+        "name": "alr"
+      },
+      "notebook": "04_coordinates_do_not_recover_totals.ipynb",
+      "sql": [
+        {
+          "cell": "coordinates-sql",
+          "reference": "skbio.stats.alr"
+        }
+      ],
+      "narrative_cells": [
+        "coordinates-question"
+      ],
+      "result_cells": [
+        "coordinates-finding"
+      ],
+      "interpretation_cells": [
+        "coordinates-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use stats.alr in the focused analytical question of notebook 04, with the returned values displayed and reconciled.",
+        "finding": "Eight log-ratios use a visible zero-based reference derived from named feature order. Switching a to c changes only ALR coordinates and labels."
+      }
+    },
+    {
+      "object": {
+        "schema": "stats",
+        "name": "clr_inv"
+      },
+      "notebook": "04_coordinates_do_not_recover_totals.ipynb",
+      "sql": [
+        {
+          "cell": "inverse-sql",
+          "reference": "skbio.stats.clr_inv"
+        }
+      ],
+      "narrative_cells": [
+        "inverse-question"
+      ],
+      "result_cells": [
+        "inverse-sql"
+      ],
+      "interpretation_cells": [
+        "inverse-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use stats.clr_inv in the focused analytical question of notebook 04, with the returned values displayed and reconciled.",
+        "finding": "All twelve recovered proportions match closure; numeric inverse part indices are mapped back to explicit a/b/c feature names."
+      }
+    },
+    {
+      "object": {
+        "schema": "stats",
+        "name": "ilr_inv"
+      },
+      "notebook": "04_coordinates_do_not_recover_totals.ipynb",
+      "sql": [
+        {
+          "cell": "inverse-sql",
+          "reference": "skbio.stats.ilr_inv"
+        }
+      ],
+      "narrative_cells": [
+        "inverse-question"
+      ],
+      "result_cells": [
+        "inverse-sql"
+      ],
+      "interpretation_cells": [
+        "inverse-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use stats.ilr_inv in the focused analytical question of notebook 04, with the returned values displayed and reconciled.",
+        "finding": "Two coordinates per sample recover three proportions using the same default basis. All twelve parts reconcile without claiming original-count recovery."
+      }
+    },
+    {
+      "object": {
+        "schema": "stats",
+        "name": "alr_inv"
+      },
+      "notebook": "04_coordinates_do_not_recover_totals.ipynb",
+      "sql": [
+        {
+          "cell": "inverse-sql",
+          "reference": "skbio.stats.alr_inv"
+        }
+      ],
+      "narrative_cells": [
+        "inverse-question"
+      ],
+      "result_cells": [
+        "inverse-sql"
+      ],
+      "interpretation_cells": [
+        "inverse-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use stats.alr_inv in the focused analytical question of notebook 04, with the returned values displayed and reconciled.",
+        "finding": "Matching the selected reference index recovers all twelve closed proportions for either reference feature; mismatched references are not silently accepted."
+      }
+    },
+    {
+      "object": {
+        "schema": "stats",
+        "name": "pairwise_vlr"
+      },
+      "notebook": "04_coordinates_do_not_recover_totals.ipynb",
+      "sql": [
+        {
+          "cell": "variance-sql",
+          "reference": "skbio.stats.pairwise_vlr"
+        }
+      ],
+      "narrative_cells": [
+        "variance-question"
+      ],
+      "result_cells": [
+        "variance-finding"
+      ],
+      "interpretation_cells": [
+        "variance-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use stats.pairwise_vlr in the focused analytical question of notebook 04, with the returned values displayed and reconciled.",
+        "finding": "All nine feature-pair variances match SQL var_samp of log ratios. The fixed b=2a relation yields zero a/b variance while ratios with c vary; this is descriptive synthetic variation."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "neighbor_joining"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "builders-sql",
+          "reference": "skbio.tree.neighbor_joining"
+        }
+      ],
+      "narrative_cells": [
+        "input-question"
+      ],
+      "result_cells": [
+        "measure-finding"
+      ],
+      "interpretation_cells": [
+        "measure-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.neighbor_joining in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "Both reference and selected neighbor-joining Newick trees retain four tips. Uniform positive input scaling changes lengths while preserving the within-method topology."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "upgma"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "builders-sql",
+          "reference": "skbio.tree.upgma"
+        }
+      ],
+      "narrative_cells": [
+        "input-question"
+      ],
+      "result_cells": [
+        "measure-finding"
+      ],
+      "interpretation_cells": [
+        "measure-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.upgma in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "Reference and selected UPGMA trees retain four tips and the rooted ultrametric construction is distinguished from the other methods. Root-dependent height is not interpreted as age."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "gme"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "builders-sql",
+          "reference": "skbio.tree.gme"
+        }
+      ],
+      "narrative_cells": [
+        "input-question"
+      ],
+      "result_cells": [
+        "measure-finding"
+      ],
+      "interpretation_cells": [
+        "measure-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.gme in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "Greedy-minimum-evolution output participates in the same tip-count, length/height scaling and comparison audit rather than being listed as a catalog name."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "bme"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "builders-sql",
+          "reference": "skbio.tree.bme"
+        }
+      ],
+      "narrative_cells": [
+        "input-question"
+      ],
+      "result_cells": [
+        "measure-finding"
+      ],
+      "interpretation_cells": [
+        "measure-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.bme in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "Balanced-minimum-evolution output is separately materialized, displayed and measured. This small matrix tests scale behavior without inferring method superiority."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "tip_count"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "measure-sql",
+          "reference": "skbio.tree.tip_count"
+        }
+      ],
+      "narrative_cells": [
+        "measure-question"
+      ],
+      "result_cells": [
+        "measure-finding"
+      ],
+      "interpretation_cells": [
+        "measure-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.tip_count in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "All eight constructed trees retain the complete four-label denominator; controlled trees also retain those four tips."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "total_branch_length"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "measure-sql",
+          "reference": "skbio.tree.total_branch_length"
+        }
+      ],
+      "narrative_cells": [
+        "measure-question"
+      ],
+      "result_cells": [
+        "measure-finding"
+      ],
+      "interpretation_cells": [
+        "measure-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.total_branch_length in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "The actual stored-edge total is measured for every method and scale. The controlled scaled tree has total length 6 times the selected factor."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "tree_height"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "measure-sql",
+          "reference": "skbio.tree.tree_height"
+        }
+      ],
+      "narrative_cells": [
+        "measure-question"
+      ],
+      "result_cells": [
+        "measure-finding"
+      ],
+      "interpretation_cells": [
+        "measure-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.tree_height in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "Serialized-root height is measured separately from total edge length and verified to scale within each method; different roots are not treated as comparable biological ages."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "robinson_foulds"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "distance-sql",
+          "reference": "skbio.tree.robinson_foulds"
+        }
+      ],
+      "narrative_cells": [
+        "distance-question"
+      ],
+      "result_cells": [
+        "distance-finding"
+      ],
+      "interpretation_cells": [
+        "distance-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.robinson_foulds in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "The topology-swapped control has four differing rooted splits; identical and uniformly scaled controls have zero split distance."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "weighted_robinson_foulds"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "distance-sql",
+          "reference": "skbio.tree.weighted_robinson_foulds"
+        }
+      ],
+      "narrative_cells": [
+        "distance-question"
+      ],
+      "result_cells": [
+        "distance-finding"
+      ],
+      "interpretation_cells": [
+        "distance-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.weighted_robinson_foulds in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "The topology swap and non-unit length scaling are detected, distinguishing branch-length changes from split changes."
+      }
+    },
+    {
+      "object": {
+        "schema": "tree",
+        "name": "cophenetic_distance"
+      },
+      "notebook": "05_tree_scale_is_not_topology.ipynb",
+      "sql": [
+        {
+          "cell": "distance-sql",
+          "reference": "skbio.tree.cophenetic_distance"
+        }
+      ],
+      "narrative_cells": [
+        "distance-question"
+      ],
+      "result_cells": [
+        "distance-finding"
+      ],
+      "interpretation_cells": [
+        "distance-finding"
+      ],
+      "review": {
+        "status": "approved",
+        "reviewer": "/root/notebooks_sympy",
+        "reviewed_at": "2026-11-14T23:07:42.853780+00:00",
+        "notebook_sha256": "18b765223dea17d7121840129fe63c984bdb93f9359b50aeb925b86eeb1729cc",
+        "catalog_sha256": [
+          "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+          "bbe93c95a8091454a16a1de1ea21a96f9afaf9067a4ef9a379900d6f0951b050"
+        ],
+        "purpose": "Use tree.cophenetic_distance in the focused analytical question of notebook 05, with the returned values displayed and reconciled.",
+        "finding": "The actual upstream default is unit correlation (1-r)/2, independent of positive common scale. The controlled scaled tree can have changed absolute lengths but zero distance; a topology swap returns 0.75."
+      }
+    }
+  ]
+}

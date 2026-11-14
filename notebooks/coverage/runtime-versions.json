@@ -1,0 +1,13 @@
+{
+  "command": "uvx --python 3.13 --from git+https://github.com/Query-farm/vgi-scikit-bio@v0.3.0 python -c <importlib.metadata version query>",
+  "source_revision": "eea42cf85f63a79b06be0e08880fe3e9c3824daa",
+  "packages": {
+    "vgi-scikit-bio": "0.3.0",
+    "scikit-bio": "0.7.4",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "scipy": "1.18.1",
+    "vgi-python": "0.51.1",
+    "vgi-rpc": "0.53.1"
+  }
+}

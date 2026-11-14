@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "notebook_sha256": "ac5e103b32f078d2e61a447343ef5c8a7bc6bb504cfefb4c728adb86c64829c1",
+  "catalog_sha256": "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+  "worker_revision": "eea42cf85f63a79b06be0e08880fe3e9c3824daa",
+  "status": "success",
+  "executed_at": "2026-11-14T22:57:12.856563+00:00",
+  "engine": "Haybarn 2.0.0rc11 / community VGI; released vgi-scikit-bio v0.3.0",
+  "command": "uv run --locked vgi-notebooks 02_orientation_before_composition.ipynb --timeout 600",
+  "catalog_aliases": [
+    "skbio"
+  ],
+  "cells": [
+    {
+      "id": "parameters",
+      "status": "success",
+      "execution_count": 1,
+      "source_sha256": "f7c249882a90c2749a8cd8f337aac1b109530b1a2c000d23f2dd17790b8f0c7e",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "bootstrap",
+      "status": "success",
+      "execution_count": 2,
+      "source_sha256": "0312121e6147dc600e8466b2508f437f0bcfaa8269f3d6c5d6bf5f396771c42e",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "setup",
+      "status": "success",
+      "execution_count": 3,
+      "source_sha256": "eba8e374559fa54200d4e65efcd5dafc80528e845ebbd8bcd3b02cebd047dc01",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "connection",
+      "status": "success",
+      "execution_count": 4,
+      "source_sha256": "33445d57d7e7ee511d775a6f67063684eb76374711a8e7ae0407f08ba3ce155b",
+      "outputs_sha256": "c17c19a5c176854762c97c96bafef62f247262c382ecc6533cf998819c105960"
+    },
+    {
+      "id": "quality-sql",
+      "status": "success",
+      "execution_count": 5,
+      "source_sha256": "9cd66d9eea44c02a0070b298acbdb58f0cbe3d5489de94b2584a74396e15a6d0",
+      "outputs_sha256": "84b7362a46e8ca72f87f2c18a46ef2e5af429d03253d66c407c7ebffea32fcc6"
+    },
+    {
+      "id": "transform-sql",
+      "status": "success",
+      "execution_count": 6,
+      "source_sha256": "34b29023b75a2d3d6a3638b957309fa452444859cee8285af7472843911dcbd8",
+      "outputs_sha256": "5d86ac5f9ed531bc92de001dc71a24ec501d84fe6616dbbbaab612e6db2a3289"
+    },
+    {
+      "id": "composition-sql",
+      "status": "success",
+      "execution_count": 7,
+      "source_sha256": "2a64ddb526b4afbf0974f649812b6db062cac6d277cba0466ff1414dac04953e",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "composition-finding",
+      "status": "success",
+      "execution_count": 8,
+      "source_sha256": "aad143f80e3dd9c262b9cfd1697b56df5b1224e69227e53cf66f3fd6c6a9ee7d",
+      "outputs_sha256": "bbb06b6aa6fba5a941dbf3b9cde277f85ae0d3dbbeb8cbb82222adfe7075e270"
+    },
+    {
+      "id": "kmers-sql",
+      "status": "success",
+      "execution_count": 9,
+      "source_sha256": "d495464c21315cb88db10051bc423f6acc677d9a708baefd91564595fa7825ab",
+      "outputs_sha256": "4bc80deedaa32c23040ae6c4553e0ad5e13e6379595ccb639726b5a2dcb5a93c"
+    },
+    {
+      "id": "overlap-sql",
+      "status": "success",
+      "execution_count": 10,
+      "source_sha256": "197e59571f1b4b6558b6dba2ee1724c6e9108a8700f47efad6885d8849b4e207",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "checks-sql",
+      "status": "success",
+      "execution_count": 11,
+      "source_sha256": "de4804dbe0fad66407eef4ad1de4fd4d63dc4f02a68348e8ec04c7a8584f7bfd",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "kmers-finding",
+      "status": "success",
+      "execution_count": 12,
+      "source_sha256": "98447ff44719a7eb5c107155109e1c412d2d411dfba8209a53af57bfb91135ea",
+      "outputs_sha256": "7d51363f0dafbb6e84afbf034639a0d1ad45ea5ee7f9d6dc8279c4bc0942c8a5"
+    },
+    {
+      "id": "cleanup",
+      "status": "success",
+      "execution_count": 13,
+      "source_sha256": "253dd6f37aa50e657f869d6ba37c2ec4a5b80fcdcb8f313c72b297ad1565dd86",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ]
+}

@@ -327,4 +327,4 @@ also cite scikit-bio.
 
 ## Notebooks
 
-See the [executed count-scale and diversity walkthrough](notebooks/README.md).
+See the [five executed SQL walkthroughs](notebooks/README.md) for count scale, sequence representation, alignment, compositional coordinates and tree comparisons.

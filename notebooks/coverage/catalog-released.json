@@ -1,0 +1,928 @@
+{
+  "schema_version": 1,
+  "repository": "Query-farm/vgi-scikit-bio",
+  "revision": "eea42cf85f63a79b06be0e08880fe3e9c3824daa",
+  "captured_at": "2026-11-14T22:46:18.161745+00:00",
+  "default_schema": "sequence",
+  "scope": "all_public_functions_and_tables",
+  "complete": true,
+  "evidence": [
+    {
+      "path": "coverage/released-functions.json",
+      "sha256": "645c34ea1f112f74fc254a9d2edeea760613cf688d6b575bba9b60080e4b70d9",
+      "description": "Complete worker-filtered functions export through actual published Haybarn"
+    },
+    {
+      "path": "coverage/released-tables.json",
+      "sha256": "fc939d2bf0e874fb974f7ecfe1e8c535b3ae4c37dd66f84150ed185b49c46df1",
+      "description": "Complete worker-filtered tables export through actual published Haybarn"
+    },
+    {
+      "path": "coverage/released-views.json",
+      "sha256": "1672de3bc0ec723996c804e013c9734d15112caf5f658b174836e02dd9982348",
+      "description": "Complete worker-filtered views export through actual published Haybarn"
+    }
+  ],
+  "objects": [
+    {
+      "schema": "alignment",
+      "name": "align_score_nucleotide",
+      "kind": "function",
+      "signatures": [
+        "align_score_nucleotide(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "alignment",
+      "name": "align_score_protein",
+      "kind": "function",
+      "signatures": [
+        "align_score_protein(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "alignment",
+      "name": "pairwise_align_nucleotide",
+      "kind": "function",
+      "signatures": [
+        "pairwise_align_nucleotide(TABLE, VARCHAR, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "alignment",
+      "name": "pairwise_align_protein",
+      "kind": "function",
+      "signatures": [
+        "pairwise_align_protein(TABLE, VARCHAR, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "ace",
+      "kind": "function",
+      "signatures": [
+        "ace(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "berger_parker_d",
+      "kind": "function",
+      "signatures": [
+        "berger_parker_d(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "beta_diversity",
+      "kind": "function",
+      "signatures": [
+        "beta_diversity(TABLE, VARCHAR, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "brillouin_d",
+      "kind": "function",
+      "signatures": [
+        "brillouin_d(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "chao1",
+      "kind": "function",
+      "signatures": [
+        "chao1(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "chao1_ci",
+      "kind": "function",
+      "signatures": [
+        "chao1_ci(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "dominance",
+      "kind": "function",
+      "signatures": [
+        "dominance(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "doubles",
+      "kind": "function",
+      "signatures": [
+        "doubles(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "enspie",
+      "kind": "function",
+      "signatures": [
+        "enspie(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "esty_ci",
+      "kind": "function",
+      "signatures": [
+        "esty_ci(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "faith_pd",
+      "kind": "function",
+      "signatures": [
+        "faith_pd(TABLE, VARCHAR, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "fisher_alpha",
+      "kind": "function",
+      "signatures": [
+        "fisher_alpha(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "gini_index",
+      "kind": "function",
+      "signatures": [
+        "gini_index(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "goods_coverage",
+      "kind": "function",
+      "signatures": [
+        "goods_coverage(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "heip_evenness",
+      "kind": "function",
+      "signatures": [
+        "heip_evenness(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "hill",
+      "kind": "function",
+      "signatures": [
+        "hill(DOUBLE, DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "inv_simpson",
+      "kind": "function",
+      "signatures": [
+        "inv_simpson(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "kempton_taylor_q",
+      "kind": "function",
+      "signatures": [
+        "kempton_taylor_q(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "margalef",
+      "kind": "function",
+      "signatures": [
+        "margalef(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "mcintosh_d",
+      "kind": "function",
+      "signatures": [
+        "mcintosh_d(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "mcintosh_e",
+      "kind": "function",
+      "signatures": [
+        "mcintosh_e(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "menhinick",
+      "kind": "function",
+      "signatures": [
+        "menhinick(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "observed_features",
+      "kind": "function",
+      "signatures": [
+        "observed_features(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "osd",
+      "kind": "function",
+      "signatures": [
+        "osd(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "pielou_evenness",
+      "kind": "function",
+      "signatures": [
+        "pielou_evenness(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "renyi",
+      "kind": "function",
+      "signatures": [
+        "renyi(DOUBLE, DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "robbins",
+      "kind": "function",
+      "signatures": [
+        "robbins(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "shannon",
+      "kind": "function",
+      "signatures": [
+        "shannon(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "simpson",
+      "kind": "function",
+      "signatures": [
+        "simpson(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "simpson_d",
+      "kind": "function",
+      "signatures": [
+        "simpson_d(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "simpson_e",
+      "kind": "function",
+      "signatures": [
+        "simpson_e(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "singles",
+      "kind": "function",
+      "signatures": [
+        "singles(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "strong",
+      "kind": "function",
+      "signatures": [
+        "strong(DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "subsample_counts",
+      "kind": "function",
+      "signatures": [
+        "subsample_counts(TABLE, BOOLEAN, BIGINT, BIGINT, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "tsallis",
+      "kind": "function",
+      "signatures": [
+        "tsallis(DOUBLE, DOUBLE)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "diversity",
+      "name": "unifrac",
+      "kind": "function",
+      "signatures": [
+        "unifrac(TABLE, VARCHAR, VARCHAR, BOOLEAN, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "complement",
+      "kind": "function",
+      "signatures": [
+        "complement(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "count_subsequence",
+      "kind": "function",
+      "signatures": [
+        "count_subsequence(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "degap",
+      "kind": "function",
+      "signatures": [
+        "degap(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "gc_content",
+      "kind": "function",
+      "signatures": [
+        "gc_content(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "gc_frequency",
+      "kind": "function",
+      "signatures": [
+        "gc_frequency(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "hamming_distance",
+      "kind": "function",
+      "signatures": [
+        "hamming_distance(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "has_degenerates",
+      "kind": "function",
+      "signatures": [
+        "has_degenerates(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "has_gaps",
+      "kind": "function",
+      "signatures": [
+        "has_gaps(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "is_reverse_complement",
+      "kind": "function",
+      "signatures": [
+        "is_reverse_complement(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "is_valid_dna",
+      "kind": "function",
+      "signatures": [
+        "is_valid_dna(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "is_valid_protein",
+      "kind": "function",
+      "signatures": [
+        "is_valid_protein(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "kmer_frequencies",
+      "kind": "function",
+      "signatures": [
+        "kmer_frequencies(TABLE, VARCHAR, BIGINT, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "match_count",
+      "kind": "function",
+      "signatures": [
+        "match_count(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "mismatch_count",
+      "kind": "function",
+      "signatures": [
+        "mismatch_count(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "residue_frequencies",
+      "kind": "function",
+      "signatures": [
+        "residue_frequencies(TABLE, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "reverse_complement",
+      "kind": "function",
+      "signatures": [
+        "reverse_complement(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "reverse_transcribe",
+      "kind": "function",
+      "signatures": [
+        "reverse_transcribe(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "transcribe",
+      "kind": "function",
+      "signatures": [
+        "transcribe(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "translate",
+      "kind": "function",
+      "signatures": [
+        "translate(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "sequence",
+      "name": "translate_six_frames",
+      "kind": "function",
+      "signatures": [
+        "translate_six_frames(TABLE, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "alr",
+      "kind": "function",
+      "signatures": [
+        "alr(TABLE, VARCHAR, VARCHAR, BIGINT, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "alr_inv",
+      "kind": "function",
+      "signatures": [
+        "alr_inv(TABLE, VARCHAR, VARCHAR, BIGINT, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "ancom",
+      "kind": "function",
+      "signatures": [
+        "ancom(TABLE, VARCHAR, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "anosim",
+      "kind": "function",
+      "signatures": [
+        "anosim(TABLE, BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "ca",
+      "kind": "function",
+      "signatures": [
+        "ca(TABLE, VARCHAR, VARCHAR, BIGINT, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "centralize",
+      "kind": "function",
+      "signatures": [
+        "centralize(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "closure",
+      "kind": "function",
+      "signatures": [
+        "closure(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "clr",
+      "kind": "function",
+      "signatures": [
+        "clr(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "clr_inv",
+      "kind": "function",
+      "signatures": [
+        "clr_inv(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "dirmult_ttest",
+      "kind": "function",
+      "signatures": [
+        "dirmult_ttest(TABLE, VARCHAR, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "ilr",
+      "kind": "function",
+      "signatures": [
+        "ilr(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "ilr_inv",
+      "kind": "function",
+      "signatures": [
+        "ilr_inv(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "mantel",
+      "kind": "function",
+      "signatures": [
+        "mantel(TABLE, VARCHAR, VARCHAR, BIGINT, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "multi_replace",
+      "kind": "function",
+      "signatures": [
+        "multi_replace(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "pairwise_vlr",
+      "kind": "function",
+      "signatures": [
+        "pairwise_vlr(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "pca",
+      "kind": "function",
+      "signatures": [
+        "pca(TABLE, VARCHAR, VARCHAR, BIGINT, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "pcoa",
+      "kind": "function",
+      "signatures": [
+        "pcoa(TABLE, BIGINT, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "permanova",
+      "kind": "function",
+      "signatures": [
+        "permanova(TABLE, BIGINT, VARCHAR, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "power",
+      "kind": "function",
+      "signatures": [
+        "power(TABLE, VARCHAR, VARCHAR, DOUBLE, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "stats",
+      "name": "rclr",
+      "kind": "function",
+      "signatures": [
+        "rclr(TABLE, VARCHAR, VARCHAR, DOUBLE, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "bme",
+      "kind": "function",
+      "signatures": [
+        "bme(TABLE, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "cophenetic_distance",
+      "kind": "function",
+      "signatures": [
+        "cophenetic_distance(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "gme",
+      "kind": "function",
+      "signatures": [
+        "gme(TABLE, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "neighbor_joining",
+      "kind": "function",
+      "signatures": [
+        "neighbor_joining(TABLE, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "robinson_foulds",
+      "kind": "function",
+      "signatures": [
+        "robinson_foulds(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "tip_count",
+      "kind": "function",
+      "signatures": [
+        "tip_count(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "total_branch_length",
+      "kind": "function",
+      "signatures": [
+        "total_branch_length(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "tree_height",
+      "kind": "function",
+      "signatures": [
+        "tree_height(VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "upgma",
+      "kind": "function",
+      "signatures": [
+        "upgma(TABLE, VARCHAR, VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    },
+    {
+      "schema": "tree",
+      "name": "weighted_robinson_foulds",
+      "kind": "function",
+      "signatures": [
+        "weighted_robinson_foulds(VARCHAR, VARCHAR)"
+      ],
+      "authentication": "none",
+      "access": "read"
+    }
+  ]
+}

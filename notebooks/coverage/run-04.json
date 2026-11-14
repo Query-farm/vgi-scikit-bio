@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "notebook_sha256": "faabac0d1869e96a379ecb5cb92320555795fdf85b437bfa9c864a72f00603dd",
+  "catalog_sha256": "e1594fdf326cf5acd1d141acd3add50ab377ff4054220bc7380556e8f5630686",
+  "worker_revision": "eea42cf85f63a79b06be0e08880fe3e9c3824daa",
+  "status": "success",
+  "executed_at": "2026-11-14T22:57:36.508452+00:00",
+  "engine": "Haybarn 2.0.0rc11 / community VGI; released vgi-scikit-bio v0.3.0",
+  "command": "uv run --locked vgi-notebooks 04_coordinates_do_not_recover_totals.ipynb --timeout 600",
+  "catalog_aliases": [
+    "skbio"
+  ],
+  "cells": [
+    {
+      "id": "parameters",
+      "status": "success",
+      "execution_count": 1,
+      "source_sha256": "20a6e2030f33bd1cb9598c28450e7832d3bce8025fdf4d8db80598008c6dc075",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "bootstrap",
+      "status": "success",
+      "execution_count": 2,
+      "source_sha256": "0312121e6147dc600e8466b2508f437f0bcfaa8269f3d6c5d6bf5f396771c42e",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "setup",
+      "status": "success",
+      "execution_count": 3,
+      "source_sha256": "30d6c3356a0c0663700c96d7ab4f4be08abce4066c7c41eb782726163f66fc59",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "connection",
+      "status": "success",
+      "execution_count": 4,
+      "source_sha256": "33445d57d7e7ee511d775a6f67063684eb76374711a8e7ae0407f08ba3ce155b",
+      "outputs_sha256": "c17c19a5c176854762c97c96bafef62f247262c382ecc6533cf998819c105960"
+    },
+    {
+      "id": "input-sql",
+      "status": "success",
+      "execution_count": 5,
+      "source_sha256": "2bbc1357d332b75affe34146f1546b34c1fd2b23500b4d320998ab3770793b88",
+      "outputs_sha256": "c0556fca7cca225530062b52c36a7477ab7ec414e668d2d55b5da79da9370df5"
+    },
+    {
+      "id": "coordinates-sql",
+      "status": "success",
+      "execution_count": 6,
+      "source_sha256": "7c21fff68e6fdd2766c6fea0060bd8cb884ae11d9a0fea91a916ccc19706ca8f",
+      "outputs_sha256": "b76e14391040548756012fa8bd3eed47739f45317af88118fe0869d00a686f68"
+    },
+    {
+      "id": "coordinates-capture",
+      "status": "success",
+      "execution_count": 7,
+      "source_sha256": "15c84f21ba096820e7ff6e0252d2fb2d338ad58056622ed9942ac69b5460d886",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "coordinates-finding",
+      "status": "success",
+      "execution_count": 8,
+      "source_sha256": "8b2802b3ae1ae0a94791e5d059ad47427cc5cb92e1760aa327c12190e607a986",
+      "outputs_sha256": "838eabb531a1d5ca90f6d8ba076565a9c3c367ec2e8eaf38401db96b63743135"
+    },
+    {
+      "id": "inverse-sql",
+      "status": "success",
+      "execution_count": 9,
+      "source_sha256": "4c8175228e218b84b9ae2ab0894e8b0dac85c48ba0c877768ae9eefa3bdb064c",
+      "outputs_sha256": "0e724dec0d7086eaeb023e2d66fbccccc4cce62d594e440289ae59dce2ff3740"
+    },
+    {
+      "id": "variance-sql",
+      "status": "success",
+      "execution_count": 10,
+      "source_sha256": "f13952cd2547f6be4b836660f714bf55c5df2cb6312c99d821aa4cbc694408ac",
+      "outputs_sha256": "98bb6aac7fa8bd16c5b56bdd741b0c90f341f1c7980c991d492725b67e766557"
+    },
+    {
+      "id": "variance-capture",
+      "status": "success",
+      "execution_count": 11,
+      "source_sha256": "9798ee73f33ea83a0e593bad93d2b5f045ef2275d05c2e6a24b76de592660ffd",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "checks-sql",
+      "status": "success",
+      "execution_count": 12,
+      "source_sha256": "be77da2bd9acb82ca8ea4d58c7276b960a172a94b9e0607a28840f89f8ecfc53",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "variance-finding",
+      "status": "success",
+      "execution_count": 13,
+      "source_sha256": "08f86a34e3a7b52e214bd3393422b202243c06f6748da36deb92e0f97d5b8963",
+      "outputs_sha256": "583557c7e7720d1bdb941d861b08f91c5c405fb2d19d9fde0f088a6429ab179b"
+    },
+    {
+      "id": "cleanup",
+      "status": "success",
+      "execution_count": 14,
+      "source_sha256": "253dd6f37aa50e657f869d6ba37c2ec4a5b80fcdcb8f313c72b297ad1565dd86",
+      "outputs_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ]
+}
