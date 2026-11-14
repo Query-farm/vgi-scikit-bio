@@ -333,6 +333,29 @@ def _align_result_cols() -> str:
     )
 
 
+# Composed example (pairwise_align_nucleotide -> sequence.match_count /
+# sequence.has_gaps over the aligned strings): defined once, attached to
+# pairwise_align_nucleotide below and re-published on the alignment schema.
+ALIGNMENT_IDENTITY_EXAMPLE = FunctionExample(
+    sql=(
+        "SELECT a.read_id, a.aligned_1, a.aligned_2, "
+        "round(skbio.sequence.match_count(a.aligned_1, a.aligned_2) / a.length, 4) AS identity, "
+        "skbio.sequence.has_gaps(a.aligned_1) OR skbio.sequence.has_gaps(a.aligned_2) AS has_indel "
+        "FROM skbio.alignment.pairwise_align_nucleotide((SELECT * FROM "
+        "(VALUES ('r1', 'ACTGGTACCA', 'ACTGTACCA'), ('r2', 'GATTACAGAT', 'GATTCCAGAT'), "
+        "('r3', 'TTGACCGTAA', 'TTGACCGTAA')) AS p(read_id, ref, read)), "
+        "id := 'read_id', seq1 := 'ref', seq2 := 'read') AS a "
+        "ORDER BY identity DESC, a.read_id"
+    ),
+    description=(
+        "Percent identity of each read against its reference: align the pair, then count the "
+        "identical columns of the two aligned strings with match_count and divide by the aligned "
+        "length. r3 is a perfect match (1.0); r1 and r2 both reach 0.9, and has_gaps on the aligned "
+        "strings tells them apart -- r1 lost a base (an indel), r2 carries a substitution."
+    ),
+)
+
+
 class PairwiseAlignNucleotide(_PairwiseAlign):
     """Global/local pairwise alignment of two DNA columns (aligned strings + score)."""
 
@@ -359,7 +382,8 @@ class PairwiseAlignNucleotide(_PairwiseAlign):
                     "the indel that the score alone only hints at. Carrying read_id through "
                     "(id := 'read_id') is what lets the alignment be joined back to the source rows."
                 ),
-            )
+            ),
+            ALIGNMENT_IDENTITY_EXAMPLE,
         ]
         tags = {
             "vgi.category": "pairwise",

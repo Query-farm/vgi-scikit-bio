@@ -237,6 +237,14 @@ and a `metadata(sample_id, group)` table:
 SELECT sample_id, skbio.diversity.shannon(count) AS shannon
 FROM feature_table GROUP BY sample_id;
 
+-- 1b. The same, depth-fair: rarefy every sample to 1,000 counts first
+--     (samples with fewer counts are dropped)
+SELECT sample_id,
+       skbio.diversity.observed_features(count) AS richness,
+       skbio.diversity.shannon(count)           AS shannon
+FROM skbio.diversity.subsample_counts((SELECT * FROM feature_table), depth := 1000)
+GROUP BY sample_id;
+
 -- 2. Bray–Curtis distances → PCoA coordinates for an ordination plot
 CREATE TABLE bc AS
   SELECT * FROM skbio.diversity.beta_diversity((SELECT * FROM feature_table));

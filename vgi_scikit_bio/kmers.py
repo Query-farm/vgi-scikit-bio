@@ -91,6 +91,26 @@ class _KmerArgs:
     k: Annotated[int, Arg("k", default=3, doc="k-mer length (number of residues per token).")]
 
 
+# Composed example (kmer_frequencies -> diversity.beta_diversity): defined once,
+# attached to kmer_frequencies below and re-published on the sequence schema.
+KMER_DISTANCE_EXAMPLE = FunctionExample(
+    sql=(
+        "SELECT id_1, id_2, round(distance, 4) AS distance FROM skbio.diversity.beta_diversity("
+        "(SELECT read_id, kmer, count FROM skbio.sequence.kmer_frequencies((SELECT * FROM "
+        "(VALUES ('r1', 'ATGCGGATTACAGG'), ('r2', 'ATGCGGATTACTGG'), ('r3', 'TTGCACGTTTGCAC')) "
+        "AS reads(read_id, seq)), id := 'read_id', k := 3)), metric := 'jaccard') "
+        "WHERE id_1 < id_2 ORDER BY distance, id_1, id_2"
+    ),
+    description=(
+        "Alignment-free read comparison: feed each read's 3-mer profile into beta_diversity as if "
+        "reads were samples and k-mers were features, and rank the read pairs by Jaccard distance "
+        "between their k-mer sets. r1 and r2 differ by a single base and share most 3-mers "
+        "(distance 0.4), while r3 shares almost none with either (about 0.95). The same long "
+        "distance matrix can go on to pcoa or neighbor_joining."
+    ),
+)
+
+
 class KmerFrequencies(SinkBuffer[_KmerArgs, DrainState]):
     """Count overlapping k-mers per sequence, emitted long as ``(id?, kmer, count)``."""
 
@@ -116,7 +136,8 @@ class KmerFrequencies(SinkBuffer[_KmerArgs, DrainState]):
                     "count) output PIVOTs straight into a feature matrix for clustering or "
                     "taxonomic classification."
                 ),
-            )
+            ),
+            KMER_DISTANCE_EXAMPLE,
         ]
         tags = {
             "vgi.result_dynamic_columns_md": _long_result_cols(

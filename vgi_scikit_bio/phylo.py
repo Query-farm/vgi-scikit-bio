@@ -346,6 +346,29 @@ class _SubsampleArgs:
     count: Annotated[str, Arg("count", default="", doc="Abundance-count column (defaults to the third column).")]
 
 
+# Composed example (subsample_counts -> observed_features / shannon aggregates):
+# defined once, attached to subsample_counts below and re-published on the
+# diversity schema.
+RAREFIED_ALPHA_EXAMPLE = FunctionExample(
+    sql=(
+        "SELECT r.sample_id, sum(r.count)::BIGINT AS depth, "
+        "skbio.diversity.observed_features(r.count)::BIGINT AS richness, "
+        "round(skbio.diversity.shannon(r.count), 4) AS shannon "
+        "FROM skbio.diversity.subsample_counts((SELECT * FROM "
+        "(VALUES ('s1','a',40),('s1','b',30),('s1','c',2),('s1','d',1),"
+        "('s2','a',300),('s2','b',200),('s2','c',90),('s2','d',60),('s2','e',5)) "
+        "AS t(sample_id, feature_id, count)), depth := 50) AS r "
+        "GROUP BY r.sample_id ORDER BY r.sample_id"
+    ),
+    description=(
+        "Depth-fair alpha diversity: rarefy every sample to 50 counts, then compute richness and "
+        "Shannon diversity over the rarefied counts in one GROUP BY. Raw, s2 (sequenced about 9x "
+        "deeper) shows five features to s1's four; at a common depth its rare feature e drops out, "
+        "both samples show four, and the remaining Shannon gap reflects evenness, not sequencing effort."
+    ),
+)
+
+
 class SubsampleCounts(SinkBuffer[_SubsampleArgs, DrainState]):
     """Rarefy each sample's counts to a fixed depth, emitted long."""
 
@@ -372,7 +395,8 @@ class SubsampleCounts(SinkBuffer[_SubsampleArgs, DrainState]):
                     "rather than sequencing effort. Every sample's counts now sum to 8; run this "
                     "before the alpha metrics, which are all depth-sensitive."
                 ),
-            )
+            ),
+            RAREFIED_ALPHA_EXAMPLE,
         ]
         tags = {
             "vgi.category": "preprocessing",

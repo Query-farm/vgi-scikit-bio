@@ -22,19 +22,26 @@ from typing import Any
 from vgi import Worker
 from vgi.catalog import Catalog, ReadOnlyCatalogInterface, Schema
 from vgi.catalog.catalog_interface import CatalogAttachResult, CatalogInfo
+from vgi.metadata import FunctionExample
 
 from vgi_scikit_bio import __version__
-from vgi_scikit_bio.alignment import ALIGNMENT_FUNCTIONS
+from vgi_scikit_bio.alignment import ALIGNMENT_FUNCTIONS, ALIGNMENT_IDENTITY_EXAMPLE
 from vgi_scikit_bio.composition import COMPOSITION_FUNCTIONS
 from vgi_scikit_bio.distance_stats import DISTANCE_STATS_FUNCTIONS
 from vgi_scikit_bio.diversity import DIVERSITY_FUNCTIONS
-from vgi_scikit_bio.kmers import KMER_FUNCTIONS
+from vgi_scikit_bio.kmers import KMER_DISTANCE_EXAMPLE, KMER_FUNCTIONS
 from vgi_scikit_bio.ordination import ORDINATION_FUNCTIONS
-from vgi_scikit_bio.phylo import PHYLO_FUNCTIONS
-from vgi_scikit_bio.sequence import SEQUENCE_FUNCTIONS
+from vgi_scikit_bio.phylo import PHYLO_FUNCTIONS, RAREFIED_ALPHA_EXAMPLE
+from vgi_scikit_bio.sequence import SEQUENCE_FUNCTIONS, SYNONYMOUS_VARIANT_EXAMPLE
 from vgi_scikit_bio.tree import TREE_FUNCTIONS
 
 log = logging.getLogger(__name__)
+
+
+def _example_entry(example: FunctionExample) -> dict[str, str]:
+    """Render a ``FunctionExample`` as a ``{description, sql}`` example-list entry."""
+    return {"description": example.description, "sql": example.sql}
+
 
 # The version the worker advertises over VGI. `implementation_version` is the
 # worker *software* version (a semver per the VGI protocol), so it must be the
@@ -139,6 +146,7 @@ _CATALOG_EXECUTABLE_EXAMPLES = json.dumps(
                 "AS t(sample_id, feature_id, count)))), n_components := 2)"
             ),
         },
+        _example_entry(SYNONYMOUS_VARIANT_EXAMPLE),
     ]
 )
 # Analyst tasks for `vgi-lint simulate` — natural-language prompts an agent
@@ -416,6 +424,28 @@ _AGENT_TEST_TASKS: list[dict[str, str]] = [
             "(s2,'c',5) as (sample_id, feature_id, count) to a common depth of 8 counts per "
             "sample, using the default seed. Return the rarefied table with columns sample_id, "
             "feature_id and count, ordered by sample_id then feature_id."
+        ),
+    },
+    # --- composed: diversity functions chained / joined ----------------------
+    {
+        "name": "phylogenetic_vs_observed_richness",
+        "prompt": (
+            "Given the feature table (s1,f1,3), (s1,f2,5), (s2,f1,2), (s2,f4,6), (s3,f2,1), (s3,f3,1), "
+            f"(s3,f4,2) as (sample_id, feature_id, count) and the tree '{_D_TREE}', compare plain "
+            "richness with phylogenetic diversity for each sample. Return columns sample_id, richness "
+            "(the number of features observed in the sample, as an integer) and faith_pd (Faith's "
+            "phylogenetic diversity rounded to 4 decimals), ordered by sample_id."
+        ),
+    },
+    {
+        "name": "rarefied_bray_curtis",
+        "prompt": (
+            "The feature table (s1,a,30), (s1,b,10), (s1,c,2), (s2,a,300), (s2,b,120), (s2,c,60), "
+            "(s3,a,5), (s3,b,40), (s3,c,20) as (sample_id, feature_id, count) has very uneven "
+            "sequencing depths. Rarefy every sample to a common depth of 40 counts (default seed, "
+            "without replacement), then compute the Bray-Curtis distance between the rarefied "
+            "samples. Return columns id_1, id_2 and distance (rounded to 4 decimals), one row per "
+            "unordered pair with id_1 < id_2, ordered by id_1 then id_2."
         ),
     },
     # --- ordination -------------------------------------------------------
@@ -752,7 +782,9 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
                 {
                     "description": "GC content of a DNA sequence",
                     "sql": "SELECT skbio.sequence.gc_content('ATGCGGATTACAGG')",
-                }
+                },
+                _example_entry(SYNONYMOUS_VARIANT_EXAMPLE),
+                _example_entry(KMER_DISTANCE_EXAMPLE),
             ]
         ),
     },
@@ -779,7 +811,8 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
                 {
                     "description": "Global alignment score of two DNA sequences",
                     "sql": "SELECT skbio.alignment.align_score_nucleotide('ACTGGT', 'ACTGT')",
-                }
+                },
+                _example_entry(ALIGNMENT_IDENTITY_EXAMPLE),
             ]
         ),
     },
@@ -814,9 +847,10 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
                     "sql": (
                         "SELECT sample_id, skbio.diversity.shannon(count) FROM "
                         "(VALUES (1,'a',4),(1,'b',2),(2,'a',1),(2,'b',9)) AS t(sample_id, feature_id, count) "
-                        "GROUP BY sample_id"
+                        "GROUP BY sample_id ORDER BY sample_id"
                     ),
-                }
+                },
+                _example_entry(RAREFIED_ALPHA_EXAMPLE),
             ]
         ),
     },
@@ -850,10 +884,11 @@ _SCHEMA_META: dict[str, dict[str, str]] = {
                 {
                     "description": "PCoA of a distance matrix",
                     "sql": (
-                        "SELECT * FROM skbio.stats.pcoa((SELECT * FROM "
+                        "SELECT sample_id, round(pc_1, 4) AS pc_1, round(pc_2, 4) AS pc_2 "
+                        "FROM skbio.stats.pcoa((SELECT * FROM "
                         "(VALUES ('a','a',0.0),('a','b',0.5),('a','c',0.7),('b','a',0.5),('b','b',0.0),"
                         "('b','c',0.6),('c','a',0.7),('c','b',0.6),('c','c',0.0)) AS d(id_1, id_2, distance)), "
-                        "n_components := 2)"
+                        "n_components := 2) ORDER BY sample_id"
                     ),
                 }
             ]

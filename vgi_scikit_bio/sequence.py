@@ -307,6 +307,30 @@ class Transcribe(ScalarFunction):
         return _map_str(seq, lambda s: str(DNA(s).transcribe()))
 
 
+# Composed example (translate + mismatch_count + align_score_protein): defined
+# once, attached to translate below and re-published on the sequence schema.
+SYNONYMOUS_VARIANT_EXAMPLE = FunctionExample(
+    sql=(
+        "SELECT variant, skbio.sequence.mismatch_count(ref, alt) AS base_changes, "
+        "skbio.sequence.translate(ref) AS ref_protein, skbio.sequence.translate(alt) AS alt_protein, "
+        "skbio.sequence.translate(ref) = skbio.sequence.translate(alt) AS synonymous, "
+        "skbio.alignment.align_score_protein(skbio.sequence.translate(ref), skbio.sequence.translate(alt)) "
+        "AS protein_score "
+        "FROM (VALUES ('v1', 'ATGCGGATTACAAAA', 'ATGCGTATTACAAAA'), "
+        "('v2', 'ATGCGGATTACAAAA', 'ATGCGGATTCCAAAA'), "
+        "('v3', 'ATGCGGATTACAAAA', 'ATGTGGATTACAAAA')) AS v(variant, ref, alt) "
+        "ORDER BY variant"
+    ),
+    description=(
+        "Classify point mutations in a coding sequence as synonymous or not: each variant changes "
+        "exactly one base, translate both alleles, and score the two proteins with "
+        "align_score_protein. v1 (CGG->CGT) still codes arginine, so the protein is unchanged and "
+        "keeps the full score; v2 swaps threonine for proline and v3 arginine for tryptophan, and "
+        "the substitution-matrix score drops further for the more radical change."
+    ),
+)
+
+
 class Translate(ScalarFunction):
     """Translate a DNA sequence to protein using the standard genetic code."""
 
@@ -325,7 +349,8 @@ class Translate(ScalarFunction):
                     "complete a codon is simply dropped -- if the frame is unknown, use "
                     "translate_six_frames instead of guessing this one."
                 ),
-            )
+            ),
+            SYNONYMOUS_VARIANT_EXAMPLE,
         ]
         tags = {
             "vgi.doc_llm": (
