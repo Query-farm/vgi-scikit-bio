@@ -324,3 +324,7 @@ commercial support and SLAs see [SUPPORT.md](SUPPORT.md) or email
 
 Built on [scikit-bio](https://scikit.bio) — if you use it in research, please
 also cite scikit-bio.
+
+## Notebooks
+
+See the [executed count-scale and diversity walkthrough](notebooks/README.md).
