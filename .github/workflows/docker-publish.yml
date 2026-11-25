@@ -83,9 +83,14 @@ jobs:
         echo "::endgroup::"
 
         echo "::group::stdio entrypoint smoke (one cold container, sequence only)"
+        # One query's RPCs run in several cold containers that share the SQLite
+        # state volume. With no signing key, vgi-python seals framework storage
+        # under the host-local key file, which would otherwise be minted per
+        # container (MAC check failed on _vgi/buffering_init); keep it on the
+        # shared volume so every container uses the same key.
         docker volume rm vgi_scikit_bio_state_ci >/dev/null 2>&1 || true
         TEST_PATTERN="test/sql/skbio_sequence.test" \
-          VGI_SCIKIT_BIO_WORKER="docker run -i --rm -v vgi_scikit_bio_state_ci:/data $CITEST_IMAGE stdio" \
+          VGI_SCIKIT_BIO_WORKER="docker run -i --rm -v vgi_scikit_bio_state_ci:/data -e VGI_ATTACH_SECRET_KEY_FILE=/data/state/attach-secret-options.key $CITEST_IMAGE stdio" \
           ci/run-integration.sh
         docker volume rm vgi_scikit_bio_state_ci >/dev/null 2>&1 || true
         echo "::endgroup::"

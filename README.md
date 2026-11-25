@@ -19,7 +19,7 @@ INSTALL vgi FROM community; LOAD vgi;
 
 -- Attach with zero local install — from the GitHub release via uvx, or from ghcr via oci://
 ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-scikit-bio@v0.4.0 vgi-scikit-bio');
--- ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.4.0');
+-- ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.4.1');
 
 SELECT skbio.sequence.gc_content('ATGCGGATTACAGG');            -- 0.5
 SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG');    -- CCTGTAATCCGCAT
@@ -31,7 +31,7 @@ DuckDB and scikit-bio, so you get scikit-bio's algorithms without leaving SQL.
 
 ---
 
-vgi-scikit-bio 0.4.0 speaks VGI protocol 3.4, so it needs Haybarn 2.0.1 or newer (Haybarn 2.0.0 loads a 3.3 `vgi` extension that cannot attach it).
+vgi-scikit-bio 0.4.1 speaks VGI protocol 3.4, so it needs Haybarn 2.0.1 or newer (Haybarn 2.0.0 loads a 3.3 `vgi` extension that cannot attach it).
 
 ## Contents
 
@@ -75,7 +75,7 @@ the package, later ones are instant.
 Python at all (just needs Docker or Podman):
 
 ```sql
-ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.4.0');
+ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.4.1');
 ```
 
 The extension turns the `oci://` address into a pooled `docker run -i --rm …
@@ -100,7 +100,7 @@ ATTACH 'skbio' (TYPE vgi, LOCATION 'uv run scikit_bio_worker.py');
 `vgi-scikit-bio-http`) and attach over its URL:
 
 ```sh
-docker run -d -p 8000:8000 -e VGI_SIGNING_KEY=change-me ghcr.io/query-farm/vgi-scikit-bio:0.4.0
+docker run -d -p 8000:8000 -e VGI_SIGNING_KEY=change-me ghcr.io/query-farm/vgi-scikit-bio:0.4.1
 ```
 ```sql
 ATTACH 'skbio' (TYPE vgi, LOCATION 'http://localhost:8000');
