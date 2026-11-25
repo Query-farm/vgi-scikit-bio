@@ -18,8 +18,8 @@ aggregate, and table functions.
 INSTALL vgi FROM community; LOAD vgi;
 
 -- Attach with zero local install — from the GitHub release via uvx, or from ghcr via oci://
-ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-scikit-bio@v0.3.1 vgi-scikit-bio');
--- ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.3.1');
+ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-scikit-bio@v0.4.0 vgi-scikit-bio');
+-- ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.4.0');
 
 SELECT skbio.sequence.gc_content('ATGCGGATTACAGG');            -- 0.5
 SELECT skbio.sequence.reverse_complement('ATGCGGATTACAGG');    -- CCTGTAATCCGCAT
@@ -30,6 +30,8 @@ Everything runs in a separate Python process and streams Apache Arrow between
 DuckDB and scikit-bio, so you get scikit-bio's algorithms without leaving SQL.
 
 ---
+
+vgi-scikit-bio 0.4.0 speaks VGI protocol 3.4, so it needs Haybarn 2.0.1 or newer (Haybarn 2.0.0 loads a 3.3 `vgi` extension that cannot attach it).
 
 ## Contents
 
@@ -62,7 +64,7 @@ LOAD vgi;
 **Zero-install from a GitHub release (`uvx`)** — recommended for a laptop with `uv`:
 
 ```sql
-ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-scikit-bio@v0.3.1 vgi-scikit-bio');
+ATTACH 'skbio' (TYPE vgi, LOCATION 'uvx --from git+https://github.com/Query-farm/vgi-scikit-bio@v0.4.0 vgi-scikit-bio');
 SELECT skbio.sequence.gc_content('ATGCGGATTACAGG');   -- 0.5
 ```
 
@@ -73,7 +75,7 @@ the package, later ones are instant.
 Python at all (just needs Docker or Podman):
 
 ```sql
-ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.3.1');
+ATTACH 'skbio' (TYPE vgi, LOCATION 'oci://ghcr.io/query-farm/vgi-scikit-bio:0.4.0');
 ```
 
 The extension turns the `oci://` address into a pooled `docker run -i --rm …
@@ -81,7 +83,7 @@ stdio` and keeps the container warm across queries. Use `:latest` to track the
 newest release, or `docker://…` (an alias). A struct `LOCATION` adds options —
 `{'image': 'oci://…', 'runtime': 'podman', 'volumes': ['skbio_state:/data']}`.
 
-**Installed console script** — if you `uv tool install git+https://github.com/Query-farm/vgi-scikit-bio@v0.3.1`, the
+**Installed console script** — if you `uv tool install git+https://github.com/Query-farm/vgi-scikit-bio@v0.4.0`, the
 `vgi-scikit-bio` (stdio) and `vgi-scikit-bio-http` (HTTP) scripts are on `PATH`:
 
 ```sql
@@ -98,7 +100,7 @@ ATTACH 'skbio' (TYPE vgi, LOCATION 'uv run scikit_bio_worker.py');
 `vgi-scikit-bio-http`) and attach over its URL:
 
 ```sh
-docker run -d -p 8000:8000 -e VGI_SIGNING_KEY=change-me ghcr.io/query-farm/vgi-scikit-bio:0.3.1
+docker run -d -p 8000:8000 -e VGI_SIGNING_KEY=change-me ghcr.io/query-farm/vgi-scikit-bio:0.4.0
 ```
 ```sql
 ATTACH 'skbio' (TYPE vgi, LOCATION 'http://localhost:8000');
